@@ -23,6 +23,7 @@ public class TestAWSApi {
     subnetIds.add("subnet-0a9da473b73b80600");
     subnetIds.add("subnet-028311e21c2ddd0cc");
     subnetIds.add("subnet-0435cbd93aa7c1349");
-    EC2Client.getInstance().createVPCEndpoints("com.amazonaws.vpce.us-east-1.vpce-svc-0a2f07c9944d54ec2", "vpc-0203ed32a98933ac8", subnetIds);
+    String vpcEndpointId = EC2Client.getInstance().createVPCEndpoints("com.amazonaws.vpce.us-east-1.vpce-svc-0a2f07c9944d54ec2", "vpc-0203ed32a98933ac8", subnetIds);
+    System.out.println(vpcEndpointId);
   }
 }
