@@ -68,7 +68,13 @@ public class Ec2ClientImpl implements EC2Client {
 		// TODO Auto-generated method stub
 		List<String> endpoints = new ArrayList<String>();
 		endpoints.add(vpcEndpointId);
-		deleteVpcEndpoints(endpoints);
+		
+		if(deleteVpcEndpoints(endpoints).size()==0) {
+			System.out.println("Successfully Deleted VpcEndpoint" + vpcEndpointId);
+		}
+		else {
+			System.out.println("Failed to delete VpcEndpoint" + vpcEndpointId);
+		}
 	}
 
 	@Override
