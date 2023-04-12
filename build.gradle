@@ -56,6 +56,9 @@ dependencies {
 implementation group: 'com.amazonaws', name: 'aws-java-sdk-core', version: '1.11.723'
 implementation group: 'com.amazonaws', name: 'aws-java-sdk', version: '1.0.12'
 implementation "com.amazonaws:aws-java-sdk-ec2:1.12.435"
+// https://mvnrepository.com/artifact/com.amazonaws/aws-java-sdk-sts
+implementation group: 'com.amazonaws', name: 'aws-java-sdk-sts', version: '1.12.446'
+
 implementation "joda-time:joda-time:2.2"
 testImplementation "junit:junit:4.12"
 	
