@@ -1,0 +1,65 @@
+package main
+
+import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
+	"io/ioutil"
+	"log"
+
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+)
+
+func main() {
+	// Load client certificate and private key files
+	cert, err := tls.LoadX509KeyPair("client.pem", "client.key")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Load CA certificate file
+	caCert, err := ioutil.ReadFile("ca.pem")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	// Configure TLS connection options
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      caCertPool,
+	}
+
+	// Set TLSConfig in MongoClientOptions
+	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017").
+		SetTLSConfig(tlsConfig)
+
+	// Create a new MongoDB client
+	client, err := mongo.NewClient(clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Connect to the MongoDB server
+	err = client.Connect(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Ping the MongoDB server to test the connection
+	err = client.Ping(nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println("Connected to MongoDB!")
+
+	// Disconnect from the MongoDB server
+	err = client.Disconnect(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
