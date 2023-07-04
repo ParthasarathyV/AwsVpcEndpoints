@@ -1,10 +1,7 @@
-package main
+package crud
 
 import (
 	"context"
-	"fmt"
-	"log"
-	"testing"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -20,11 +17,12 @@ type User struct {
 }
 
 var (
-	dbName         = "your-db-name"
-	collectionName = "users"
+	dbName         = "your-db-name"  // Replace with your database name
+	collectionName = "users"         // Replace with your collection name
 	connectionURI  = "mongodb://localhost:27017"
 )
 
+// createClient creates a connection to the MongoDB server.
 func createClient() (*mongo.Client, error) {
 	clientOptions := options.Client().ApplyURI(connectionURI)
 	client, err := mongo.Connect(context.Background(), clientOptions)
@@ -38,7 +36,8 @@ func createClient() (*mongo.Client, error) {
 	return client, nil
 }
 
-func createUser(user User) error {
+// CreateUser inserts a new user into the database.
+func CreateUser(user User) error {
 	client, err := createClient()
 	if err != nil {
 		return err
@@ -54,7 +53,8 @@ func createUser(user User) error {
 	return nil
 }
 
-func readUser(id string) (*User, error) {
+// ReadUser retrieves a user from the database based on the given ID.
+func ReadUser(id string) (*User, error) {
 	client, err := createClient()
 	if err != nil {
 		return nil, err
@@ -73,7 +73,8 @@ func readUser(id string) (*User, error) {
 	return &user, nil
 }
 
-func updateUser(id string, name string, email string) error {
+// UpdateUser updates a user in the database with the given ID, name, and email.
+func UpdateUser(id string, name string, email string) error {
 	client, err := createClient()
 	if err != nil {
 		return err
@@ -97,7 +98,8 @@ func updateUser(id string, name string, email string) error {
 	return nil
 }
 
-func deleteUser(id string) error {
+// DeleteUser deletes a user from the database based on the given ID.
+func DeleteUser(id string) error {
 	client, err := createClient()
 	if err != nil {
 		return err
@@ -113,44 +115,4 @@ func deleteUser(id string) error {
 	}
 
 	return nil
-}
-
-func TestCRUDOperations(t *testing.T) {
-	// Create a user
-	user := User{
-		ID:        "1",
-		Name:      "John Doe",
-		Email:     "johndoe@example.com",
-		CreatedAt: time.Now(),
-	}
-	err := createUser(user)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Read the user
-	readUser, err := readUser(user.ID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Read user:", readUser)
-
-	// Update the user
-	err = updateUser(user.ID, "Jane Smith", "janesmith@example.com")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Read the updated user
-	readUser, err = readUser(user.ID)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Updated user:", readUser)
-
-	// Delete the user
-	err = deleteUser(user.ID)
-	if err != nil {
-		log.Fatal(err)
-	}
 }
