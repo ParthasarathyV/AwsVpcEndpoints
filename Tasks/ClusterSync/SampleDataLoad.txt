@@ -1,0 +1,140 @@
+// Create and switch to database 'db1'
+use db1
+db.createCollection("col1")
+db.createCollection("col2")
+
+// Sample data for collection 1 in db1
+var col1DataDb1 = [
+  {
+    "name": "John Doe",
+    "age": 30,
+    "email": "john.doe@example.com"
+  },
+  {
+    "name": "Jane Smith",
+    "age": 28,
+    "email": "jane.smith@example.com"
+  },
+  // More records here...
+];
+
+// Sample data for collection 2 in db1
+var col2DataDb1 = [
+  {
+    "product": "Widget A",
+    "price": 19.99,
+    "quantity": 100
+  },
+  {
+    "product": "Widget B",
+    "price": 24.99,
+    "quantity": 50
+  },
+  // More records here...
+];
+
+// Insert data into collection 1 in db1
+db.getSiblingDB("db1").col1.insertMany(col1DataDb1);
+
+// Insert data into collection 2 in db1
+db.getSiblingDB("db1").col2.insertMany(col2DataDb1);
+
+
+// Repeat the above for other databases (db2, db3, db4, db5) and collections (col1, col2)...
+
+
+// Create and switch to database 'db2'
+use db2
+db.createCollection("col1")
+db.createCollection("col2")
+
+// Sample data for collection 1 in db2
+var col1DataDb2 = [
+  // ...
+];
+
+// Sample data for collection 2 in db2
+var col2DataDb2 = [
+  // ...
+];
+
+// Insert data into collection 1 in db2
+db.getSiblingDB("db2").col1.insertMany(col1DataDb2);
+
+// Insert data into collection 2 in db2
+db.getSiblingDB("db2").col2.insertMany(col2DataDb2);
+
+
+// Repeat the above for other databases (db3, db4, db5) and collections (col1, col2)...
+
+
+// Create and switch to database 'db3'
+use db3
+db.createCollection("col1")
+db.createCollection("col2")
+
+// Sample data for collection 1 in db3
+var col1DataDb3 = [
+  // ...
+];
+
+// Sample data for collection 2 in db3
+var col2DataDb3 = [
+  // ...
+];
+
+// Insert data into collection 1 in db3
+db.getSiblingDB("db3").col1.insertMany(col1DataDb3);
+
+// Insert data into collection 2 in db3
+db.getSiblingDB("db3").col2.insertMany(col2DataDb3);
+
+
+// Repeat the above for other databases (db4, db5) and collections (col1, col2)...
+
+
+// Create and switch to database 'db4'
+use db4
+db.createCollection("col1")
+db.createCollection("col2")
+
+// Sample data for collection 1 in db4
+var col1DataDb4 = [
+  // ...
+];
+
+// Sample data for collection 2 in db4
+var col2DataDb4 = [
+  // ...
+];
+
+// Insert data into collection 1 in db4
+db.getSiblingDB("db4").col1.insertMany(col1DataDb4);
+
+// Insert data into collection 2 in db4
+db.getSiblingDB("db4").col2.insertMany(col2DataDb4);
+
+
+// Repeat the above for the last database, 'db5'...
+
+
+// Create and switch to database 'db5'
+use db5
+db.createCollection("col1")
+db.createCollection("col2")
+
+// Sample data for collection 1 in db5
+var col1DataDb5 = [
+  // ...
+];
+
+// Sample data for collection 2 in db5
+var col2DataDb5 = [
+  // ...
+];
+
+// Insert data into collection 1 in db5
+db.getSiblingDB("db5").col1.insertMany(col1DataDb5);
+
+// Insert data into collection 2 in db5
+db.getSiblingDB("db5").col2.insertMany(col2DataDb5);
