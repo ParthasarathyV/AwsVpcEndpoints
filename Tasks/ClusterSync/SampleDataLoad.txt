@@ -4,40 +4,19 @@ db.createCollection("col1")
 db.createCollection("col2")
 
 // Sample data for collection 1 in db1
-var col1DataDb1 = [
-  {
-    "name": "John Doe",
-    "age": 30,
-    "email": "john.doe@example.com"
-  },
-  {
-    "name": "Jane Smith",
-    "age": 28,
-    "email": "jane.smith@example.com"
-  },
-  // More records here...
-];
+var col1Data = [{"name":"John Doe","age":30,"email":"john.doe@example.com"},{"name":"Jane Smith","age":28,"email":"jane.smith@example.com"},{"name":"Alex Johnson","age":35,"email":"alex.johnson@example.com"},{"name":"Sophia Brown","age":40,"email":"sophia.brown@example.com"},{"name":"William Davis","age":42,"email":"william.davis@example.com"},{"name":"Ella Martinez","age":25,"email":"ella.martinez@example.com"},{"name":"James Wilson","age":33,"email":"james.wilson@example.com"},{"name":"Emily Turner","age":28,"email":"emily.turner@example.com"},{"name":"Daniel Carter","age":29,"email":"daniel.carter@example.com"},{"name":"Olivia Harris","age":37,"email":"olivia.harris@example.com"},{"name":"Liam Anderson","age":24,"email":"liam.anderson@example.com"},{"name":"Ava Thomas","age":32,"email":"ava.thomas@example.com"},{"name":"Noah Murphy","age":31,"email":"noah.murphy@example.com"},{"name":"Isabella Rivera","age":39,"email":"isabella.rivera@example.com"},{"name":"James White","age":27,"email":"james.white@example.com"},{"name":"Sophia Hill","age":26,"email":"sophia.hill@example.com"},{"name":"Emma King","age":34,"email":"emma.king@example.com"},{"name":"Michael Green","age":29,"email":"michael.green@example.com"},{"name":"Elizabeth Carter","age":30,"email":"elizabeth.carter@example.com"},{"name":"David Allen","age":32,"email":"david.allen@example.com"},{"name":"Mia Johnson","age":28,"email":"mia.johnson@example.com"},{"name":"Jacob Adams","age":31,"email":"jacob.adams@example.com"},{"name":"Olivia Mitchell","age":27,"email":"olivia.mitchell@example.com"},{"name":"Mason Perez","age":25,"email":"mason.perez@example.com"},{"name":"Sophia Baker","age":29,"email":"sophia.baker@example.com"},{"name":"Ava Turner","age":28,"email":"ava.turner@example.com"},{"name":"Isabella Rivera","age":31,"email":"isabella.rivera@example.com"},{"name":"William Edwards","age":30,"email":"william.edwards@example.com"},{"name":"James Cooper","age":26,"email":"james.cooper@example.com"},{"name":"Oliver Powell","age":32,"email":"oliver.powell@example.com"},{"name":"Emily Turner","age":25,"email":"emily.turner@example.com"},{"name":"Emma Walker","age":27,"email":"emma.walker@example.com"},{"name":"Noah Kelly","age":28,"email":"noah.kelly@example.com"},{"name":"Sophia Hill","age":30,"email":"sophia.hill@example.com"},{"name":"Oliver Foster","age":29,"email":"oliver.foster@example.com"},{"name":"Emma Murphy","age":32,"email":"emma.murphy@example.com"},{"name":"Sophia Rivera","age":30,"email":"sophia.rivera@example.com"},{"name":"Mason Wright","age":26,"email":"mason.wright@example.com"},{"name":"Ava Davis","age":31,"email":"ava.davis@example.com"},{"name":"Jacob Martinez","age":30,"email":"jacob.martinez@example.com"},{"name":"Olivia Lopez","age":29,"email":"olivia.lopez@example.com"},{"name":"James Martin","age":30,"email":"james.martin@example.com"},{"name":"Oliver Evans","age":31,"email":"oliver.evans@example.com"},{"name":"Olivia Cooper","age":28,"email":"olivia.cooper@example.com"},{"name":"Ava Turner","age":30,"email":"ava.turner@example.com"},{"name":"Emma Parker","age":32,"email":"emma.parker@example.com"},{"name":"Oliver Nelson","age":30,"email":"oliver.nelson@example.com"},{"name":"Emma Miller","age":29,"email":"emma.miller@example.com"},{"name":"James Harris","age":26,"email":"james.harris@example.com"},{"name":"Jacob Hall","age":27,"email":"jacob.hall@example.com"},{"name":"Olivia Martinez","age":32,"email":"olivia.martinez@example.com"},{"name":"Ava Lewis","age":30,"email":"ava.lewis@example.com"},{"name":"Oliver Gonzalez","age":29,"email":"oliver.gonzalez@example.com"},{"name":"Sophia Wilson","age":31,"email":"sophia.wilson@example.com"},{"name":"Olivia Collins","age":30,"email":"olivia.collins@example.com"},{"name":"Sophia Powell","age":26,"email":"sophia.powell@example.com"},{"name":"Emma Adams","age":32,"email":"emma.adams@example.com"},{"name":"Jacob Harris","age":30,"email":"jacob.harris@example.com"},{"name":"Olivia Turner","age":31,"email":"olivia.turner@example.com"},{"name":"Ava Hernandez","age":30,"email":"ava.hernandez@example.com"},{"name":"Emma Smith","age":29,"email":"emma.smith@example.com"},{"name":"Oliver Johnson","age":28,"email":"oliver.johnson@example.com"},{"name":"Sophia Brown","age":30,"email":"sophia.brown@example.com"},{"name":"James Walker","age":26,"email":"james.walker@example.com"},{"name":"Jacob Lewis","age":32,"email":"jacob.lewis@example.com"},{"name":"Olivia Carter","age":30,"email":"olivia.carter@example.com"},{"name":"Sophia Allen","age":29,"email":"sophia.allen@example.com"},{"name":"Emma King","age":31,"email":"emma.king@example.com"},{"name":"Oliver Turner","age":30,"email":"oliver.turner@example.com"},{"name":"Sophia Evans","age":29,"email":"sophia.evans@example.com"},{"name":"Ava Thomas","age":26,"email":"ava.thomas@example.com"},{"name":"Olivia Murphy","age":32,"email":"olivia.murphy@example.com"},{"name":"Jacob Wilson","age":30,"email":"jacob.wilson@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Robinson","age":28,"email":"emma.robinson@example.com"},{"name":"Oliver Adams","age":32,"email":"oliver.adams@example.com"},{"name":"Olivia White","age":30,"email":"olivia.white@example.com"},{"name":"Sophia Miller","age":29,"email":"sophia.miller@example.com"},{"name":"James Hill","age":26,"email":"james.hill@example.com"},{"name":"Oliver Martinez","age":31,"email":"oliver.martinez@example.com"},{"name":"Emma Lopez","age":30,"email":"emma.lopez@example.com"},{"name":"Olivia Harris","age":28,"email":"olivia.harris@example.com"},{"name":"Jacob Lee","age":32,"email":"jacob.lee@example.com"},{"name":"Sophia Phillips","age":30,"email":"sophia.phillips@example.com"},{"name":"Emma Edwards","age":29,"email":"emma.edwards@example.com"},{"name":"Oliver Parker","age":31,"email":"oliver.parker@example.com"},{"name":"Ava Jenkins","age":30,"email":"ava.jenkins@example.com"},{"name":"Sophia Kelly","age":29,"email":"sophia.kelly@example.com"},{"name":"Emma Turner","age":27,"email":"emma.turner@example.com"},{"name":"Olivia Lopez","age":33,"email":"olivia.lopez@example.com"},{"name":"Ava Turner","age":30,"email":"ava.turner@example.com"},{"name":"Jacob White","age":29,"email":"jacob.white@example.com"},{"name":"Oliver Phillips","age":31,"email":"oliver.phillips@example.com"},{"name":"Olivia Mitchell","age":30,"email":"olivia.mitchell@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Nelson","age":27,"email":"emma.nelson@example.com"},{"name":"James Adams","age":32,"email":"james.adams@example.com"},{"name":"Oliver Green","age":30,"email":"oliver.green@example.com"},{"name":"Emma Carter","age":29,"email":"emma.carter@example.com"},{"name":"Sophia Allen","age":31,"email":"sophia.allen@example.com"},{"name":"Olivia King","age":30,"email":"olivia.king@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Hernandez","age":27,"email":"emma.hernandez@example.com"},{"name":"Oliver Smith","age":32,"email":"oliver.smith@example.com"},{"name":"Sophia Wilson","age":30,"email":"sophia.wilson@example.com"},{"name":"Emma Collins","age":29,"email":"emma.collins@example.com"},{"name":"Olivia Powell","age":31,"email":"olivia.powell@example.com"},{"name":"Sophia Adams","age":30,"email":"sophia.adams@example.com"},{"name":"Oliver Robinson","age":28,"email":"oliver.robinson@example.com"},{"name":"Emma Thomas","age":32,"email":"emma.thomas@example.com"},{"name":"Sophia Lee","age":30,"email":"sophia.lee@example.com"},{"name":"Olivia Phillips","age":29,"email":"olivia.phillips@example.com"},{"name":"Emma Green","age":31,"email":"emma.green@example.com"},{"name":"Oliver Turner","age":30,"email":"oliver.turner@example.com"},{"name":"Sophia Edwards","age":28,"email":"sophia.edwards@example.com"},{"name":"Ava Walker","age":32,"email":"ava.walker@example.com"},{"name":"Jacob Turner","age":30,"email":"jacob.turner@example.com"},{"name":"Sophia Robinson","age":29,"email":"sophia.robinson@example.com"},{"name":"Oliver Hernandez","age":31,"email":"oliver.hernandez@example.com"},{"name":"Olivia Kelly","age":30,"email":"olivia.kelly@example.com"},{"name":"Emma Turner","age":28,"email":"emma.turner@example.com"},{"name":"Jacob Martin","age":32,"email":"jacob.martin@example.com"},{"name":"Oliver Cooper","age":30,"email":"oliver.cooper@example.com"},{"name":"Sophia Walker","age":29,"email":"sophia.walker@example.com"},{"name":"Olivia Carter","age":31,"email":"olivia.carter@example.com"},{"name":"Sophia Allen","age":30,"email":"sophia.allen@example.com"},{"name":"Emma King","age":29,"email":"emma.king@example.com"},{"name":"Oliver Turner","age":31,"email":"oliver.turner@example.com"},{"name":"Sophia Evans","age":30,"email":"sophia.evans@example.com"},{"name":"Ava Thomas","age":29,"email":"ava.thomas@example.com"},{"name":"Olivia Murphy","age":32,"email":"olivia.murphy@example.com"},{"name":"Jacob Wilson","age":30,"email":"jacob.wilson@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Robinson","age":28,"email":"emma.robinson@example.com"},{"name":"Oliver Adams","age":32,"email":"oliver.adams@example.com"},{"name":"Olivia White","age":30,"email":"olivia.white@example.com"},{"name":"Sophia Miller","age":29,"email":"sophia.miller@example.com"},{"name":"James Hill","age":26,"email":"james.hill@example.com"},{"name":"Oliver Martinez","age":31,"email":"oliver.martinez@example.com"},{"name":"Emma Lopez","age":30,"email":"emma.lopez@example.com"},{"name":"Olivia Harris","age":28,"email":"olivia.harris@example.com"},{"name":"Jacob Lee","age":32,"email":"jacob.lee@example.com"},{"name":"Sophia Phillips","age":30,"email":"sophia.phillips@example.com"},{"name":"Emma Edwards","age":29,"email":"emma.edwards@example.com"},{"name":"Oliver Parker","age":31,"email":"oliver.parker@example.com"},{"name":"Ava Jenkins","age":30,"email":"ava.jenkins@example.com"},{"name":"Sophia Kelly","age":29,"email":"sophia.kelly@example.com"},{"name":"Emma Turner","age":27,"email":"emma.turner@example.com"},{"name":"Olivia Lopez","age":33,"email":"olivia.lopez@example.com"},{"name":"Ava Turner","age":30,"email":"ava.turner@example.com"},{"name":"Jacob White","age":29,"email":"jacob.white@example.com"},{"name":"Oliver Phillips","age":31,"email":"oliver.phillips@example.com"},{"name":"Olivia Mitchell","age":30,"email":"olivia.mitchell@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Nelson","age":27,"email":"emma.nelson@example.com"},{"name":"James Adams","age":32,"email":"james.adams@example.com"},{"name":"Oliver Green","age":30,"email":"oliver.green@example.com"},{"name":"Emma Carter","age":29,"email":"emma.carter@example.com"},{"name":"Sophia Allen","age":31,"email":"sophia.allen@example.com"},{"name":"Emma King","age":29,"email":"emma.king@example.com"},{"name":"Oliver Turner","age":31,"email":"oliver.turner@example.com"},{"name":"Sophia Evans","age":30,"email":"sophia.evans@example.com"},{"name":"Ava Thomas","age":29,"email":"ava.thomas@example.com"},{"name":"Olivia Murphy","age":32,"email":"olivia.murphy@example.com"},{"name":"Jacob Wilson","age":30,"email":"jacob.wilson@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Robinson","age":28,"email":"emma.robinson@example.com"},{"name":"Oliver Adams","age":32,"email":"oliver.adams@example.com"},{"name":"Olivia White","age":30,"email":"olivia.white@example.com"},{"name":"Sophia Miller","age":29,"email":"sophia.miller@example.com"},{"name":"James Hill","age":26,"email":"james.hill@example.com"},{"name":"Oliver Martinez","age":31,"email":"oliver.martinez@example.com"},{"name":"Emma Lopez","age":30,"email":"emma.lopez@example.com"},{"name":"Olivia Harris","age":28,"email":"olivia.harris@example.com"},{"name":"Jacob Lee","age":32,"email":"jacob.lee@example.com"},{"name":"Sophia Phillips","age":30,"email":"sophia.phillips@example.com"},{"name":"Emma Edwards","age":29,"email":"emma.edwards@example.com"},{"name":"Oliver Parker","age":31,"email":"oliver.parker@example.com"},{"name":"Ava Jenkins","age":30,"email":"ava.jenkins@example.com"},{"name":"Sophia Kelly","age":29,"email":"sophia.kelly@example.com"},{"name":"Emma Turner","age":27,"email":"emma.turner@example.com"},{"name":"Olivia Lopez","age":33,"email":"olivia.lopez@example.com"},{"name":"Ava Turner","age":30,"email":"ava.turner@example.com"},{"name":"Jacob White","age":29,"email":"jacob.white@example.com"},{"name":"Oliver Phillips","age":31,"email":"oliver.phillips@example.com"},{"name":"Olivia Mitchell","age":30,"email":"olivia.mitchell@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Nelson","age":27,"email":"emma.nelson@example.com"},{"name":"James Adams","age":32,"email":"james.adams@example.com"},{"name":"Oliver Green","age":30,"email":"oliver.green@example.com"},{"name":"Emma Carter","age":29,"email":"emma.carter@example.com"},{"name":"Sophia Allen","age":31,"email":"sophia.allen@example.com"},{"name":"Emma King","age":29,"email":"emma.king@example.com"},{"name":"Oliver Turner","age":31,"email":"oliver.turner@example.com"},{"name":"Sophia Evans","age":30,"email":"sophia.evans@example.com"},{"name":"Ava Thomas","age":29,"email":"ava.thomas@example.com"},{"name":"Olivia Murphy","age":32,"email":"olivia.murphy@example.com"},{"name":"Jacob Wilson","age":30,"email":"jacob.wilson@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Robinson","age":28,"email":"emma.robinson@example.com"},{"name":"Oliver Adams","age":32,"email":"oliver.adams@example.com"},{"name":"Olivia White","age":30,"email":"olivia.white@example.com"},{"name":"Sophia Miller","age":29,"email":"sophia.miller@example.com"},{"name":"James Hill","age":26,"email":"james.hill@example.com"},{"name":"Oliver Martinez","age":31,"email":"oliver.martinez@example.com"},{"name":"Emma Lopez","age":30,"email":"emma.lopez@example.com"},{"name":"Olivia Harris","age":28,"email":"olivia.harris@example.com"},{"name":"Jacob Lee","age":32,"email":"jacob.lee@example.com"},{"name":"Sophia Phillips","age":30,"email":"sophia.phillips@example.com"},{"name":"Emma Edwards","age":29,"email":"emma.edwards@example.com"},{"name":"Oliver Parker","age":31,"email":"oliver.parker@example.com"},{"name":"Ava Jenkins","age":30,"email":"ava.jenkins@example.com"},{"name":"Sophia Kelly","age":29,"email":"sophia.kelly@example.com"},{"name":"Emma Turner","age":27,"email":"emma.turner@example.com"},{"name":"Olivia Lopez","age":33,"email":"olivia.lopez@example.com"},{"name":"Ava Turner","age":30,"email":"ava.turner@example.com"},{"name":"Jacob White","age":29,"email":"jacob.white@example.com"},{"name":"Oliver Phillips","age":31,"email":"oliver.phillips@example.com"},{"name":"Olivia Mitchell","age":30,"email":"olivia.mitchell@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Nelson","age":27,"email":"emma.nelson@example.com"},{"name":"James Adams","age":32,"email":"james.adams@example.com"},{"name":"Oliver Green","age":30,"email":"oliver.green@example.com"},{"name":"Emma Carter","age":29,"email":"emma.carter@example.com"},{"name":"Sophia Allen","age":31,"email":"sophia.allen@example.com"},{"name":"Emma King","age":29,"email":"emma.king@example.com"},{"name":"Oliver Turner","age":31,"email":"oliver.turner@example.com"},{"name":"Sophia Evans","age":30,"email":"sophia.evans@example.com"},{"name":"Ava Thomas","age":29,"email":"ava.thomas@example.com"},{"name":"Olivia Murphy","age":32,"email":"olivia.murphy@example.com"},{"name":"Jacob Wilson","age":30,"email":"jacob.wilson@example.com"},{"name":"Sophia Turner","age":29,"email":"sophia.turner@example.com"},{"name":"Emma Robinson","age":28,"email":"emma.robinson@example.com"},{"name":"Oliver Adams","age":28,"email":"oliver.adams@example.com"}]
+
 
 // Sample data for collection 2 in db1
-var col2DataDb1 = [
-  {
-    "product": "Widget A",
-    "price": 19.99,
-    "quantity": 100
-  },
-  {
-    "product": "Widget B",
-    "price": 24.99,
-    "quantity": 50
-  },
-  // More records here...
+var col2Data = [
+{"product":"Widget A","price":19.99,"quantity":100},{"product":"Widget B","price":24.99,"quantity":50},{"product":"Widget C","price":14.99,"quantity":75},{"product":"Widget D","price":29.99,"quantity":120},{"product":"Widget E","price":9.99,"quantity":200},{"product":"Widget F","price":39.99,"quantity":30},{"product":"Widget G","price":49.99,"quantity":80},{"product":"Widget H","price":12.99,"quantity":90},{"product":"Widget I","price":54.99,"quantity":60},{"product":"Widget J","price":17.99,"quantity":150},{"product":"Widget K","price":22.99,"quantity":110},{"product":"Widget L","price":34.99,"quantity":70},{"product":"Widget M","price":27.99,"quantity":85},{"product":"Widget N","price":14.49,"quantity":120},{"product":"Widget O","price":19.99,"quantity":70},{"product":"Widget P","price":8.99,"quantity":240},{"product":"Widget Q","price":32.99,"quantity":55},{"product":"Widget R","price":7.99,"quantity":180},{"product":"Widget S","price":23.99,"quantity":95},{"product":"Widget T","price":13.99,"quantity":130},{"product":"Widget U","price":29.99,"quantity":75},{"product":"Widget V","price":14.49,"quantity":120},{"product":"Widget W","price":19.99,"quantity":70},{"product":"Widget X","price":8.99,"quantity":240},{"product":"Widget Y","price":32.99,"quantity":55},{"product":"Widget Z","price":7.99,"quantity":180},{"product":"Widget AA","price":23.99,"quantity":95},{"product":"Widget BB","price":13.99,"quantity":130},{"product":"Widget CC","price":29.99,"quantity":75},{"product":"Widget DD","price":14.49,"quantity":120},{"product":"Widget EE","price":19.99,"quantity":70},{"product":"Widget FF","price":8.99,"quantity":240},{"product":"Widget GG","price":32.99,"quantity":55},{"product":"Widget HH","price":7.99,"quantity":180},{"product":"Widget II","price":23.99,"quantity":95},{"product":"Widget JJ","price":13.99,"quantity":130},{"product":"Widget KK","price":29.99,"quantity":75},{"product":"Widget LL","price":14.49,"quantity":120},{"product":"Widget MM","price":19.99,"quantity":70},{"product":"Widget NN","price":8.99,"quantity":240},{"product":"Widget OO","price":32.99,"quantity":55},{"product":"Widget PP","price":7.99,"quantity":180},{"product":"Widget QQ","price":23.99,"quantity":95},{"product":"Widget RR","price":13.99,"quantity":130},{"product":"Widget SS","price":29.99,"quantity":75},{"product":"Widget TT","price":14.49,"quantity":120},{"product":"Widget UU","price":19.99,"quantity":70},{"product":"Widget VV","price":8.99,"quantity":240},{"product":"Widget WW","price":32.99,"quantity":55},{"product":"Widget XX","price":7.99,"quantity":180},{"product":"Widget YY","price":23.99,"quantity":95},{"product":"Widget ZZ","price":13.99,"quantity":130},{"product":"Widget AAA","price":29.99,"quantity":75},{"product":"Widget BBB","price":14.49,"quantity":120},{"product":"Widget CCC","price":19.99,"quantity":70},{"product":"Widget DDD","price":8.99,"quantity":240},{"product":"Widget EEE","price":32.99,"quantity":55},{"product":"Widget FFF","price":7.99,"quantity":180},{"product":"Widget GGG","price":23.99,"quantity":95},{"product":"Widget HHH","price":13.99,"quantity":130},{"product":"Widget III","price":29.99,"quantity":75},{"product":"Widget JJJ","price":14.49,"quantity":120},{"product":"Widget KKK","price":19.99,"quantity":70},{"product":"Widget LLL","price":8.99,"quantity":240},{"product":"Widget MMM","price":32.99,"quantity":55},{"product":"Widget NNN","price":7.99,"quantity":180},{"product":"Widget OOO","price":23.99,"quantity":95},{"product":"Widget PPP","price":13.99,"quantity":130},{"product":"Widget QQQ","price":29.99,"quantity":75},{"product":"Widget RRR","price":14.49,"quantity":120},{"product":"Widget SSS","price":19.99,"quantity":70},{"product":"Widget TTT","price":8.99,"quantity":240},{"product":"Widget UUU","price":32.99,"quantity":55},{"product":"Widget VVV","price":7.99,"quantity":180},{"product":"Widget WWW","price":23.99,"quantity":95},{"product":"Widget XXX","price":13.99,"quantity":130},{"product":"Widget YYY","price":29.99,"quantity":75},{"product":"Widget ZZZ","price":14.49,"quantity":120},{"product":"Widget AAAA","price":19.99,"quantity":70},{"product":"Widget BBBB","price":8.99,"quantity":240},{"product":"Widget CCCC","price":32.99,"quantity":55},{"product":"Widget DDDD","price":7.99,"quantity":180},{"product":"Widget EEEE","price":23.99,"quantity":95},{"product":"Widget FFFF","price":13.99,"quantity":130},{"product":"Widget GGGG","price":29.99,"quantity":75},{"product":"Widget HHHH","price":14.49,"quantity":120},{"product":"Widget IIII","price":19.99,"quantity":70},{"product":"Widget JJJJ","price":8.99,"quantity":240},{"product":"Widget KKKK","price":32.99,"quantity":55},{"product":"Widget LLLL","price":7.99,"quantity":180},{"product":"Widget MMMM","price":23.99,"quantity":95},{"product":"Widget NNNN","price":13.99,"quantity":130},{"product":"Widget OOOO","price":29.99,"quantity":75},{"product":"Widget PPPP","price":14.49,"quantity":120},{"product":"Widget QQQQ","price":19.99,"quantity":70},{"product":"Widget RRRR","price":8.99,"quantity":240},{"product":"Widget SSSS","price":32.99,"quantity":55},{"product":"Widget TTTT","price":7.99,"quantity":180},{"product":"Widget UUUU","price":23.99,"quantity":95},{"product":"Widget VVVV","price":13.99,"quantity":130},{"product":"Widget WWWW","price":29.99,"quantity":75},{"product":"Widget XXXX","price":14.49,"quantity":120},{"product":"Widget YYYY","price":19.99,"quantity":70},{"product":"Widget ZZZZ","price":8.99,"quantity":240},{"product":"Widget AAAAA","price":32.99,"quantity":55},{"product":"Widget BBBBB","price":7.99,"quantity":180},{"product":"Widget CCCCC","price":23.99,"quantity":95},{"product":"Widget DDDDD","price":13.99,"quantity":130},{"product":"Widget EEEEE","price":29.99,"quantity":75},{"product":"Widget FFFFF","price":14.49,"quantity":120},{"product":"Widget GGGGG","price":19.99,"quantity":70},{"product":"Widget HHHHH","price":8.99,"quantity":240},{"product":"Widget IIIII","price":32.99,"quantity":55},{"product":"Widget JJJJJ","price":7.99,"quantity":180},{"product":"Widget KKKKK","price":23.99,"quantity":95},{"product":"Widget LLLLL","price":13.99,"quantity":130},{"product":"Widget MMMMM","price":29.99,"quantity":75},{"product":"Widget NNNNN","price":14.49,"quantity":120},{"product":"Widget OOOOO","price":19.99,"quantity":70},{"product":"Widget PPPPP","price":8.99,"quantity":240},{"product":"Widget QQQQQ","price":32.99,"quantity":55},{"product":"Widget RRRRR","price":7.99,"quantity":180},{"product":"Widget SSSSS","price":23.99,"quantity":95},{"product":"Widget TTTTT","price":13.99,"quantity":130},{"product":"Widget UUUUU","price":29.99,"quantity":75},{"product":"Widget VVVVV","price":14.49,"quantity":120},{"product":"Widget WWWW","price":19.99,"quantity":70},{"product":"Widget XXXX","price":8.99,"quantity":240},{"product":"Widget YYYY","price":32.99,"quantity":55},{"product":"Widget ZZZZ","price":7.99,"quantity":180},{"product":"Widget AAAAAA","price":23.99,"quantity":95},{"product":"Widget BBBBBB","price":13.99,"quantity":130},{"product":"Widget CCCCCC","price":29.99,"quantity":75},{"product":"Widget DDDDDD","price":14.49,"quantity":120},{"product":"Widget EEEEEE","price":19.99,"quantity":70},{"product":"Widget FFFFFF","price":8.99,"quantity":240},{"product":"Widget GGGGGG","price":32.99,"quantity":55},{"product":"Widget HHHHHH","price":7.99,"quantity":180},{"product":"Widget IIIIII","price":23.99,"quantity":95},{"product":"Widget JJJJJJ","price":13.99,"quantity":130},{"product":"Widget KKKKKK","price":29.99,"quantity":75},{"product":"Widget LLLLLL","price":14.49,"quantity":120},{"product":"Widget MMMMMM","price":19.99,"quantity":70},{"product":"Widget NNNNNN","price":8.99,"quantity":240},{"product":"Widget OOOOOO","price":32.99,"quantity":55},{"product":"Widget PPPPPP","price":7.99,"quantity":180},{"product":"Widget QQQQQQ","price":23.99,"quantity":95},{"product":"Widget RRRRRR","price":13.99,"quantity":130},{"product":"Widget SSSSSS","price":29.99,"quantity":75},{"product":"Widget TTTTTT","price":14.49,"quantity":120},{"product":"Widget UUUUUU","price":19.99,"quantity":70},{"product":"Widget VVVVVV","price":8.99,"quantity":240},{"product":"Widget WWWWWW","price":32.99,"quantity":55},{"product":"Widget XXXXXX","price":7.99,"quantity":180},{"product":"Widget YYYYYY","price":23.99,"quantity":95},{"product":"Widget ZZZZZZ","price":13.99,"quantity":130}
 ];
 
 // Insert data into collection 1 in db1
-db.getSiblingDB("db1").col1.insertMany(col1DataDb1);
+db.getSiblingDB("db1").col1.insertMany(col1Data);
 
 // Insert data into collection 2 in db1
-db.getSiblingDB("db1").col2.insertMany(col2DataDb1);
+db.getSiblingDB("db1").col2.insertMany(col2Data);
 
 
 // Repeat the above for other databases (db2, db3, db4, db5) and collections (col1, col2)...
@@ -48,21 +27,11 @@ use db2
 db.createCollection("col1")
 db.createCollection("col2")
 
-// Sample data for collection 1 in db2
-var col1DataDb2 = [
-  // ...
-];
-
-// Sample data for collection 2 in db2
-var col2DataDb2 = [
-  // ...
-];
-
 // Insert data into collection 1 in db2
-db.getSiblingDB("db2").col1.insertMany(col1DataDb2);
+db.getSiblingDB("db2").col1.insertMany(col1Data);
 
 // Insert data into collection 2 in db2
-db.getSiblingDB("db2").col2.insertMany(col2DataDb2);
+db.getSiblingDB("db2").col2.insertMany(col2Data);
 
 
 // Repeat the above for other databases (db3, db4, db5) and collections (col1, col2)...
@@ -73,21 +42,11 @@ use db3
 db.createCollection("col1")
 db.createCollection("col2")
 
-// Sample data for collection 1 in db3
-var col1DataDb3 = [
-  // ...
-];
-
-// Sample data for collection 2 in db3
-var col2DataDb3 = [
-  // ...
-];
-
 // Insert data into collection 1 in db3
-db.getSiblingDB("db3").col1.insertMany(col1DataDb3);
+db.getSiblingDB("db3").col1.insertMany(col1Data);
 
 // Insert data into collection 2 in db3
-db.getSiblingDB("db3").col2.insertMany(col2DataDb3);
+db.getSiblingDB("db3").col2.insertMany(col2Data);
 
 
 // Repeat the above for other databases (db4, db5) and collections (col1, col2)...
@@ -98,21 +57,12 @@ use db4
 db.createCollection("col1")
 db.createCollection("col2")
 
-// Sample data for collection 1 in db4
-var col1DataDb4 = [
-  // ...
-];
-
-// Sample data for collection 2 in db4
-var col2DataDb4 = [
-  // ...
-];
 
 // Insert data into collection 1 in db4
-db.getSiblingDB("db4").col1.insertMany(col1DataDb4);
+db.getSiblingDB("db4").col1.insertMany(col1Data);
 
 // Insert data into collection 2 in db4
-db.getSiblingDB("db4").col2.insertMany(col2DataDb4);
+db.getSiblingDB("db4").col2.insertMany(col2Data);
 
 
 // Repeat the above for the last database, 'db5'...
@@ -123,18 +73,8 @@ use db5
 db.createCollection("col1")
 db.createCollection("col2")
 
-// Sample data for collection 1 in db5
-var col1DataDb5 = [
-  // ...
-];
-
-// Sample data for collection 2 in db5
-var col2DataDb5 = [
-  // ...
-];
-
 // Insert data into collection 1 in db5
-db.getSiblingDB("db5").col1.insertMany(col1DataDb5);
+db.getSiblingDB("db5").col1.insertMany(col1Data);
 
 // Insert data into collection 2 in db5
-db.getSiblingDB("db5").col2.insertMany(col2DataDb5);
+db.getSiblingDB("db5").col2.insertMany(col2Data);
