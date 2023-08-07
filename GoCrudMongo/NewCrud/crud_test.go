@@ -6,20 +6,18 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/integration/mtest"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 func TestIntegrationCRUDOperations(t *testing.T) {
 	mt := mtest.New(t, mtest.NewOptions().Topologies(mtest.ReplicaSet))
 	defer mt.Close()
 
-	// Get the client from the mtest context
-	client := mt.Client()
+	// Get the database from the mtest context
+	db := mt.DB("testdb")
 
 	// Create UserRepository using the client
-	repo := NewUserRepository(client, "testdb", "users")
+	repo := NewUserRepository(db.Client(), "testdb", "users")
 
 	ctx := context.Background()
 
