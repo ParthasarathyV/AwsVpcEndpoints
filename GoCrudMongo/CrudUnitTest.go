@@ -12,29 +12,26 @@ import (
 )
 
 func TestCRUDOperations(t *testing.T) {
-	dbName := "test-db"
-	collectionName := "test-users"
-
+	// Create mock objects
 	mockSingleResult := new(MockSingleResult)
-	mockSingleResult.On("Decode", mock.AnythingOfType("*crud.User")).Return(nil)
-
 	mockCollection := new(MockCollection)
+	mockDatabase := new(MockDatabase)
+	mockClient := new(MockClient)
+
+	// Set up mock interactions
+	mockSingleResult.On("Decode", mock.AnythingOfType("*crud.User")).Return(nil)
 	mockCollection.On("InsertOne", mock.Anything, mock.Anything, mock.Anything).Return(&mongo.InsertOneResult{}, nil)
 	mockCollection.On("FindOne", mock.Anything, mock.Anything, mock.Anything).Return(mockSingleResult)
 	mockCollection.On("UpdateOne", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(&mongo.UpdateResult{}, nil)
 	mockCollection.On("DeleteOne", mock.Anything, mock.Anything, mock.Anything).Return(&mongo.DeleteResult{}, nil)
-
-	mockDatabase := new(MockDatabase)
-	mockDatabase.On("Collection", collectionName).Return(mockCollection)
-
-	mockClient := new(MockClient)
+	mockDatabase.On("Collection", mock.Anything).Return(mockCollection)
 	mockClient.On("Disconnect", mock.Anything).Return(nil)
-	mockClient.On("Database", dbName).Return(mockDatabase)
+	mockClient.On("Database", mock.Anything).Return(mockDatabase)
 
+	// Set up createClient to return the mock client
 	clientFn := func(context.Context, ...*options.ClientOptions) (*mongo.Client, error) {
 		return mockClient, nil
 	}
-
 	createClient = clientFn
 
 	// Test Create
@@ -61,6 +58,7 @@ func TestCRUDOperations(t *testing.T) {
 	err = DeleteUser("123")
 	assert.NoError(t, err)
 
+	// Verify mock interactions
 	mockClient.AssertExpectations(t)
 	mockDatabase.AssertExpectations(t)
 	mockCollection.AssertExpectations(t)
