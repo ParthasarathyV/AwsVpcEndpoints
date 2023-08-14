@@ -1,0 +1,56 @@
+{
+    "autoExportEnabled": false,
+    "clusterId": "64b774c82182c6121c7cc25e",
+    "clusterName": "Cluster1",
+    "copySettings": [],
+    "links": [
+        {
+            "href": "https://cloud.mongodb.com/api/atlas/v1.0/groups/62e021b3cb224a1ab16756a0/clusters/Cluster1/backup/schedule",
+            "rel": "self"
+        },
+        {
+            "href": "https://cloud.mongodb.com/api/public/v1.0/groups/62e021b3cb224a1ab16756a0",
+            "rel": "https://cloud.mongodb.com/group"
+        }
+    ],
+    "nextSnapshot": "2023-08-14T23:39:07Z",
+    "policies": [
+        {
+            "id": "64b77710a3a9d67bdbe2b33b",
+            "policyItems": [
+                {
+                    "frequencyInterval": 6,
+                    "frequencyType": "hourly",
+                    "id": "64b77710a3a9d67bdbe2b33c",
+                    "retentionUnit": "days",
+                    "retentionValue": 7
+                },
+                {
+                    "frequencyInterval": 1,
+                    "frequencyType": "daily",
+                    "id": "64b77710a3a9d67bdbe2b33d",
+                    "retentionUnit": "days",
+                    "retentionValue": 7
+                },
+                {
+                    "frequencyInterval": 6,
+                    "frequencyType": "weekly",
+                    "id": "64b77710a3a9d67bdbe2b33e",
+                    "retentionUnit": "weeks",
+                    "retentionValue": 4
+                },
+                {
+                    "frequencyInterval": 40,
+                    "frequencyType": "monthly",
+                    "id": "64b77710a3a9d67bdbe2b33f",
+                    "retentionUnit": "months",
+                    "retentionValue": 12
+                }
+            ]
+        }
+    ],
+    "referenceHourOfDay": 5,
+    "referenceMinuteOfHour": 39,
+    "restoreWindowDays": 7,
+    "useOrgAndGroupNamesInExportPrefix": false
+}
