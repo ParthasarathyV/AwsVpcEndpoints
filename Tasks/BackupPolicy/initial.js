@@ -6,7 +6,7 @@ const frequencyIntervalOptionsDaily = ['NA'];
 const frequencyIntervalOptionsWeekly = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const frequencyIntervalOptionsMonthly = ['First day of the month', 'Last day of the month', '2nd of the month', /* ... */];
 
-const BackupScheduleTable = ({ policies, onAddRow }) => {
+const BackupScheduleTable = ({ policies, onAddRow, isNewRow }) => {
   return (
     <div>
       <h2>Backup Schedule</h2>
@@ -23,7 +23,9 @@ const BackupScheduleTable = ({ policies, onAddRow }) => {
           {policies.map((policy, index) => (
             <tr key={policy.id}>
               <td>
-                {index === policies.length - 1 ? ( // Check if it's the last row (new row)
+                {!isNewRow(index) ? (
+                  policy.frequencyType
+                ) : (
                   <select value={policy.frequencyType} onChange={(e) => onAddRow(e, index, 'frequencyType')}>
                     {frequencyTypes.map((type) => (
                       <option key={type} value={type}>
@@ -31,8 +33,6 @@ const BackupScheduleTable = ({ policies, onAddRow }) => {
                       </option>
                     ))}
                   </select>
-                ) : (
-                  policy.frequencyType
                 )}
               </td>
               <td>
@@ -108,9 +108,13 @@ const App = () => {
     setPolicies(updatedPolicies);
   };
 
+  const isNewRow = (index) => {
+    return index === policies.length;
+  };
+
   return (
     <div>
-      <BackupScheduleTable policies={policies} onAddRow={handleAddRow} />
+      <BackupScheduleTable policies={policies} onAddRow={handleAddRow} isNewRow={isNewRow} />
     </div>
   );
 };
