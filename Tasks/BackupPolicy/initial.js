@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 const frequencyIntervalOptionsHourly = [1, 2, 3, 4, 6, 8, 12]; // Sample options for "hourly" frequency
 const frequencyIntervalOptionsDaily = ['NA']; // Frequency intervals for "daily" frequency (set to "NA")
@@ -37,7 +37,7 @@ const frequencyIntervalOptionsMonthly = [
   '28th of the month'
 ];
 
-const BackupScheduleTable = ({ policies }) => {
+const BackupScheduleTable = ({ policies, onAddRow, frequencyTypes }) => {
   return (
     <div>
       <h2>Backup Schedule</h2>
@@ -94,6 +94,7 @@ const BackupScheduleTable = ({ policies }) => {
           ))}
         </tbody>
       </table>
+      <button onClick={onAddRow}>Add Row</button>
     </div>
   );
 };
@@ -103,11 +104,25 @@ const App = () => {
     // ... (paste the JSON content here)
   };
 
-  const policies = jsonData.policies[0].policyItems;
+  const initialPolicies = jsonData.policies[0].policyItems;
+
+  const [policies, setPolicies] = useState(initialPolicies);
+
+  const handleAddRow = () => {
+    const newPolicy = {
+      id: Date.now().toString(), // Generate a unique ID
+      frequencyType: 'hourly', // Set default frequency type
+      frequencyInterval: 1, // Set default frequency interval
+      retentionUnit: 'days', // Set default retention unit
+      retentionValue: 7 // Set default retention value
+    };
+
+    setPolicies([...policies, newPolicy]);
+  };
 
   return (
     <div>
-      <BackupScheduleTable policies={policies} />
+      <BackupScheduleTable policies={policies} onAddRow={handleAddRow} />
     </div>
   );
 };
