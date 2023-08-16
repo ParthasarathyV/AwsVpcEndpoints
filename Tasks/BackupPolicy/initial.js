@@ -6,7 +6,7 @@ const frequencyIntervalOptionsDaily = ['NA'];
 const frequencyIntervalOptionsWeekly = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const frequencyIntervalOptionsMonthly = ['First day of the month', 'Last day of the month', '2nd of the month', /* ... */];
 
-const BackupScheduleTable = ({ policies, onAddRow, isNewRow }) => {
+const BackupScheduleTable = ({ policies, onAddRow }) => {
   return (
     <div>
       <h2>Backup Schedule</h2>
@@ -23,17 +23,13 @@ const BackupScheduleTable = ({ policies, onAddRow, isNewRow }) => {
           {policies.map((policy, index) => (
             <tr key={policy.id}>
               <td>
-                {!isNewRow(index) ? (
-                  policy.frequencyType
-                ) : (
-                  <select value={policy.frequencyType} onChange={(e) => onAddRow(e, index, 'frequencyType')}>
-                    {frequencyTypes.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <select value={policy.frequencyType} onChange={(e) => onAddRow(e, index, 'frequencyType')}>
+                  {frequencyTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
               </td>
               <td>
                 {policy.frequencyType === 'hourly' && (
@@ -108,13 +104,9 @@ const App = () => {
     setPolicies(updatedPolicies);
   };
 
-  const isNewRow = (index) => {
-    return index === policies.length;
-  };
-
   return (
     <div>
-      <BackupScheduleTable policies={policies} onAddRow={handleAddRow} isNewRow={isNewRow} />
+      <BackupScheduleTable policies={policies} onAddRow={handleAddRow} />
     </div>
   );
 };
