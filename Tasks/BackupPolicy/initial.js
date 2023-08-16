@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
+import { inputStream } from './test'; // Import inputStream from test.js
 
 const frequencyTypes = ['hourly', 'daily', 'weekly', 'monthly'];
 const frequencyIntervalOptionsHourly = [1, 2, 3, 4, 6, 8, 12];
-const frequencyIntervalOptionsDaily = ['NA'];
 const frequencyIntervalOptionsWeekly = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const frequencyIntervalOptionsMonthly = ['First day of the month', 'Last day of the month', '2nd of the month', /* ... */];
+const retentionUnits = ['days', 'weeks', 'months'];
 
-const BackupScheduleTable = ({ policies, onAddRow }) => {
+const BackupScheduleTable = ({ policies, onAddRow, onDeleteRow }) => {
   return (
     <div>
       <h2>Backup Schedule</h2>
@@ -17,6 +18,7 @@ const BackupScheduleTable = ({ policies, onAddRow }) => {
             <th>Frequency Interval</th>
             <th>Retention Unit</th>
             <th>Retention Value</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -44,11 +46,6 @@ const BackupScheduleTable = ({ policies, onAddRow }) => {
                     ))}
                   </select>
                 )}
-                {policy.frequencyType === 'daily' && (
-                  <select value="NA" disabled>
-                    <option value="NA">NA</option>
-                  </select>
-                )}
                 {policy.frequencyType === 'weekly' && (
                   <select
                     value={policy.frequencyInterval}
@@ -74,8 +71,28 @@ const BackupScheduleTable = ({ policies, onAddRow }) => {
                   </select>
                 )}
               </td>
-              <td>{policy.retentionUnit}</td>
-              <td>{policy.retentionValue}</td>
+              <td>
+                <input
+                  type="text"
+                  value={policy.retentionUnit}
+                  onChange={(e) => onAddRow(e, index, 'retentionUnit')}
+                />
+              </td>
+              <td>
+                <select
+                  value={policy.retentionValue}
+                  onChange={(e) => onAddRow(e, index, 'retentionValue')}
+                >
+                  {retentionUnits.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {unit}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td>
+                <button onClick={() => onDeleteRow(index)}>Delete</button>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -86,11 +103,7 @@ const BackupScheduleTable = ({ policies, onAddRow }) => {
 };
 
 const App = () => {
-  const jsonData = {
-    // ... (paste the JSON content here)
-  };
-
-  const initialPolicies = jsonData.policies[0].policyItems;
+  const initialPolicies = inputStream.policies[0].policyItems;
 
   const [policies, setPolicies] = useState(initialPolicies);
 
@@ -104,9 +117,15 @@ const App = () => {
     setPolicies(updatedPolicies);
   };
 
+  const handleDeleteRow = (index) => {
+    const updatedPolicies = [...policies];
+    updatedPolicies.splice(index, 1);
+    setPolicies(updatedPolicies);
+  };
+
   return (
     <div>
-      <BackupScheduleTable policies={policies} onAddRow={handleAddRow} />
+      <BackupScheduleTable policies={policies} onAddRow={handleAddRow} onDeleteRow={handleDeleteRow} />
     </div>
   );
 };
