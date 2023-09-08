@@ -6,7 +6,7 @@ const frequencyIntervalOptionsWeekly = ['Sunday', 'Monday', 'Tuesday', 'Wednesda
 const frequencyIntervalOptionsMonthly = ['First day of the month', 'Last day of the month', '2nd of the month', /* ... */];
 const retentionUnits = ['days', 'weeks', 'months'];
 
-const BackupScheduleTable = ({ policies, onAddRow, onDeleteRow, isEditMode, onToggleEditMode }) => {
+const BackupScheduleTable = ({ policies, onAddRow, onDeleteRow, isEditMode, onToggleEditMode, onSave }) => {
   // Define a function to conditionally render the fields based on edit mode
   const renderFields = () => {
     return policies.map((policy, index) => (
@@ -85,7 +85,7 @@ const BackupScheduleTable = ({ policies, onAddRow, onDeleteRow, isEditMode, onTo
         </thead>
         <tbody>{renderFields()}</tbody>
       </table>
-      <button onClick={onToggleEditMode}>
+      <button onClick={isEditMode ? onSave : onToggleEditMode}>
         {isEditMode ? 'Save' : 'Edit'} {/* Change button text based on edit mode */}
       </button>
       <button onClick={() => onAddRow(null, null, null)} disabled={isEditMode}>
@@ -101,7 +101,7 @@ const App = () => {
   ];
 
   const [policies, setPolicies] = useState(initialPolicies);
-  const [isEditMode, setIsEditMode] = useState(false); // State to track edit mode
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const handleAddRow = (e, index, field) => {
     const updatedPolicies = [...policies];
@@ -120,8 +120,12 @@ const App = () => {
   };
 
   const onToggleEditMode = () => {
-    // Toggle edit mode when the "Edit" button is clicked
     setIsEditMode(!isEditMode);
+  };
+
+  const handleSave = () => {
+    console.log('Save button clicked');
+    // Implement your save logic here
   };
 
   return (
@@ -130,8 +134,9 @@ const App = () => {
         policies={policies}
         onAddRow={handleAddRow}
         onDeleteRow={handleDeleteRow}
-        isEditMode={isEditMode} // Pass edit mode state as a prop
-        onToggleEditMode={onToggleEditMode} // Pass the toggle function
+        isEditMode={isEditMode}
+        onToggleEditMode={onToggleEditMode}
+        onSave={handleSave} // Add the onSave handler
       />
     </div>
   );
