@@ -1,4 +1,3 @@
-import java.time.*;
 import java.util.Scanner;
 
 public class ConvertTimeToDays {
@@ -23,14 +22,19 @@ public class ConvertTimeToDays {
     public static int convertToDays(int number, String type) {
         int days = 0;
 
-        if (type.equalsIgnoreCase("month")) {
-            days = number * 30; // Approximate average month length
-        } else if (type.equalsIgnoreCase("year")) {
-            days = number * 365; // Assuming 365 days in a year
-        } else if (type.equalsIgnoreCase("week")) {
-            days = number * 7; // 7 days in a week
-        } else {
-            days = -1; // Invalid type
+        switch (type.toLowerCase()) {
+            case "month":
+                days = number * 30; // Approximate average month length
+                break;
+            case "year":
+                days = number * 365; // Assuming 365 days in a year
+                break;
+            case "week":
+                days = number * 7; // 7 days in a week
+                break;
+            default:
+                days = -1; // Invalid type
+                break;
         }
 
         return days;
