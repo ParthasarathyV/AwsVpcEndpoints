@@ -44,3 +44,18 @@ locals {
     bucket_arn  = lookup(data.terraform_remote_state[local.workspace_name].outputs.imediapci_vc_transcripts_3y_s3, "bucket_arn", "")
   }
 }
+
+
+locals {
+  service_name = "com.amazonaws.${data.aws_region.current.name}.sqs"
+  vpc_id       = data.aws_cloudformation_export.vpc_id.value
+
+  sqs_endpoints = [
+    for endpoint in data.aws_vpc_endpoint.account_endpoints :
+    endpoint.id if (
+      !contains(keys(endpoint.tags), "JPMC_ROUTABLE_VPC_ENDPOINT") &&
+      endpoint.service_name == local.service_name &&
+      endpoint.vpc_id == local.vpc_id
+    )
+  ]
+}
