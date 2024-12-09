@@ -1,0 +1,52 @@
+db.projects.aggregate([
+  {
+    // Group by dynamic fields (Title and RAG in this case)
+    $group: {
+      _id: {
+        Title: "$Title",
+        RAG: "$RAG"
+      },
+      pivotData: {
+        $push: {
+          key: { $concat: ["$Year", "-", "$Execution State"] }, // Composite pivot key
+          Cost: "$Cost", // Collect Cost for integer aggregation
+          ExecutionState: "$Execution State" // Collect Execution State for string operation
+        }
+      }
+    }
+  },
+  {
+    // Perform aggregation for pivoted data
+    $project: {
+      _id: 0,
+      groupFields: "$_id",
+      pivoted: {
+        $arrayToObject: {
+          $map: {
+            input: "$pivotData",
+            as: "entry",
+            in: {
+              k: "$$entry.key", // Composite pivot key
+              v: {
+                Cost: { $sum: "$$entry.Cost" }, // Sum of Costs
+                ExecutionStates: {
+                  $reduce: {
+                    input: "$$entry.ExecutionState", // Reduce for string concatenation
+                    initialValue: "",
+                    in: {
+                      $cond: [
+                        { $eq: ["$$value", ""] },
+                        "$$this",
+                        { $concat: ["$$value", ", ", "$$this"] }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+]);
