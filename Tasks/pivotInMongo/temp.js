@@ -60,3 +60,14 @@
   }
 ]
 
+
+
+{
+  "rows": [
+    { "country": "USA", "2000_gold": 20, "2000_silver": 10, "2004_gold": 25, "2004_silver": 15 },
+    { "country": "Canada", "2000_gold": 15, "2000_silver": 20, "2004_gold": 10, "2004_silver": 25 }
+  ],
+  "pivotFields": ["2000_gold", "2000_silver", "2004_gold", "2004_silver"]
+}
+
+
