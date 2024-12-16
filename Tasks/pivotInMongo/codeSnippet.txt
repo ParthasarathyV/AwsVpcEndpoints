@@ -16,3 +16,20 @@
         for (String valueField : valueFields) {
             groupOperation = groupOperation.sum(valueField).as("sum_" + valueField);
         }
+
+
+// Combine groupFields and pivotFields
+        List<String> allGroupFields = Stream.concat(groupFields.stream(), pivotFields.stream())
+                                            .collect(Collectors.toList());
+
+        // Build the dynamic _id for $group using field names
+        GroupOperation groupOperation = Aggregation.group(
+            allGroupFields.stream()
+                .map(field -> field.replace(".", "_")) // Sanitize field names
+                .toArray(String[]::new)
+        );
+
+        // Add sum operations for valueFields
+        for (String valueField : valueFields) {
+            groupOperation = groupOperation.sum(valueField).as("sum_" + valueField);
+        }
