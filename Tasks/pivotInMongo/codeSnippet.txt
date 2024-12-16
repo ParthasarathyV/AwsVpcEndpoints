@@ -33,3 +33,13 @@
         for (String valueField : valueFields) {
             groupOperation = groupOperation.sum(valueField).as("sum_" + valueField);
         }
+
+
+
+// Start by combining groupFields and pivotFields
+Fields groupIdFields = Fields.from(
+    Stream.concat(
+        groupFields.stream().map(field -> Fields.field(field, "$" + field)), // Group fields
+        pivotFields.stream().map(field -> Fields.field(field, "$" + field))  // Pivot fields
+    ).toArray(Fields.Field[]::new) // Maintain correct order
+);
