@@ -43,3 +43,62 @@ Fields groupIdFields = Fields.from(
         pivotFields.stream().map(field -> Fields.field(field, "$" + field))  // Pivot fields
     ).toArray(Fields.Field[]::new) // Maintain correct order
 );
+
+
+
+
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.GroupOperation;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperation;
+import org.springframework.data.mongodb.core.aggregation.AggregationOperators;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.bson.Document;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+public class MongoAggregation {
+    private final MongoTemplate mongoTemplate;
+
+    public MongoAggregation(MongoTemplate mongoTemplate) {
+        this.mongoTemplate = mongoTemplate;
+    }
+
+    public void performAggregation() {
+        List<String> groupFields = List.of("type", "benefitsReportingLevel", "state", "rag"); // Example list of group fields
+        List<String> pivotFields = List.of("state", "rag"); // Example list of pivot fields
+        List<String> valueFields = List.of("forecastTotalCostNextYear", "totalCostNextYear"); // Example list of value fields
+
+        // Constructing the _id field using streams
+        Document idFields = new Document();
+        idFields.putAll(
+            Stream.concat(groupFields.stream(), pivotFields.stream())
+                .collect(Collectors.toMap(field -> field, field -> "$" + field))
+        );
+
+        // Initialize the group operation
+        GroupOperation groupStage = Aggregation.group(idFields);
+
+        // Add sum fields dynamically for value fields using streams
+        for (String valueField : valueFields) {
+            groupStage = groupStage.sum("$" + valueField).as("sum_" + valueField);
+        }
+
+        // Add the group stage to aggregation pipeline
+        List<AggregationOperation> aggOps = new ArrayList<>();
+        aggOps.add(groupStage);
+
+        // Aggregation Pipeline
+        Aggregation aggregation = Aggregation.newAggregation(aggOps);
+
+        AggregationResults<Document> results = mongoTemplate.aggregate(aggregation, "yourCollectionName", Document.class);
+
+        for (Document result : results) {
+            System.out.println(result.toJson());
+        }
+    }
+}
+
