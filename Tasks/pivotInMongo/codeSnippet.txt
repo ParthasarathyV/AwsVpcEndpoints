@@ -1,0 +1,18 @@
+        // Combine groupFields and pivotFields
+        List<String> allGroupFields = Stream.concat(groupFields.stream(), pivotFields.stream())
+                                            .collect(Collectors.toList());
+
+        // Construct the _id for $group
+        Fields groupIdFields = Fields.from(
+            allGroupFields.stream()
+                .map(field -> Fields.field(field.replace(".", "_"), "$" + field))
+                .toArray(Fields.Field[]::new)
+        );
+
+        // Create GroupOperation
+        GroupOperation groupOperation = Aggregation.group(groupIdFields);
+
+        // Add sum operations for valueFields
+        for (String valueField : valueFields) {
+            groupOperation = groupOperation.sum(valueField).as("sum_" + valueField);
+        }
