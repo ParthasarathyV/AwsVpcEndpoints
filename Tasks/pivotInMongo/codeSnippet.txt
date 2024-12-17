@@ -102,3 +102,20 @@ public class MongoAggregation {
     }
 }
 
+
+
+
+    public static List<AggregationOperation> convertDocumentsToAggregationOperations(List<Document> documents) {
+        List<AggregationOperation> aggOps = new ArrayList<>();
+
+        for (Document document : documents) {
+            aggOps.add(new AggregationOperation() {
+                @Override
+                public Document toDocument(AggregationOperationContext context) {
+                    return document;
+                }
+            });
+        }
+        return aggOps;
+    }
+
