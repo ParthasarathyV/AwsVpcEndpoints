@@ -19,19 +19,15 @@ public class MongoAggregationExample {
         ProjectionOperation addFieldsStage1 = project()
                 .andExpression("concat($_id.state, '-', $_id.rag, '-forecastTotalCostNextYear)").as("pivotField1")
                 .andExpression("concat($_id.state, '-', $_id.rag, '-totalCostNextYear)").as("pivotField2")
-                .andExclude("_id");
+                .andInclude("forecastTotalCostNextYear", "totalCostNextYear", "_id");
         aggOps.add(addFieldsStage1);
 
         // $addFields stage for rowData
         ProjectionOperation addFieldsStage2 = project()
                 .and("$_id.type").as("rowData.type")
                 .and("$_id.benefitsReportingLevel").as("rowData.benefitsReportingLevel")
-                .andExpression(
-                        "{ $arrayToObject: [[{ k: pivotField1, v: forecastTotalCostNextYear }]] }"
-                ).as("rowData.forecastData")
-                .andExpression(
-                        "{ $arrayToObject: [[{ k: pivotField2, v: totalCostNextYear }]] }"
-                ).as("rowData.totalCostData");
+                .andExpression("{ $arrayToObject: [[{ k: pivotField1, v: forecastTotalCostNextYear }]] }").as("rowData.forecastData")
+                .andExpression("{ $arrayToObject: [[{ k: pivotField2, v: totalCostNextYear }]] }").as("rowData.totalCostData");
         aggOps.add(addFieldsStage2);
 
         // $group stage for aggregating pivotFields and rows
@@ -43,7 +39,7 @@ public class MongoAggregationExample {
 
         // $project stage to construct the final response
         ProjectionOperation projectStage = project()
-                .and(ArrayOperators.ArrayConcat.concat("pivotFields1", "pivotFields2")).as("response.pivotFields")
+                .andExpression("{ $concatArrays: ['$pivotFields1', '$pivotFields2'] }").as("response.pivotFields")
                 .and("rows").as("response.rows");
         aggOps.add(projectStage);
 
