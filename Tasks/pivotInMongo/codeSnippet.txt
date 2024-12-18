@@ -119,3 +119,15 @@ public class MongoAggregation {
         return aggOps;
     }
 
+
+
+
+
+// Custom AddFields stage using Document
+        AggregationOperation addFieldsOperation = context -> new Document("$addFields",
+                new Document("pivotField1", new Document("$concat", Arrays.asList(
+                        "$_id.state", "_", "$_id.rag", "_", "forecastTotalCostNextYear")))
+                        .append("pivotField2", new Document("$concat", Arrays.asList(
+                                "$_id.state", "_", "$_id.rag", "_", "totalCostNextYear")))
+        );
+
