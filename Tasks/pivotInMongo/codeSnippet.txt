@@ -131,3 +131,24 @@ public class MongoAggregation {
                                 "$_id.state", "_", "$_id.rag", "_", "totalCostNextYear")))
         );
 
+
+
+
+AggregationOperation addFieldsOperation = context -> new Document("$addFields",
+    new Document("rowData", new Document("$mergeObjects", Arrays.asList(
+        new Document("type", "$_id.type"),
+        new Document("benefitsReportingLevel", "$_id.benefitsReportingLevel"),
+        new Document("$arrayToObject", Arrays.asList(
+            Arrays.asList(
+                new Document("k", "$pivotField1")
+                        .append("v", "$forecastTotalCostNextYear")
+            )
+        )),
+        new Document("$arrayToObject", Arrays.asList(
+            Arrays.asList(
+                new Document("k", "$pivotField2")
+                        .append("v", "$totalCostNextYear")
+            )
+        ))
+    )))
+);
