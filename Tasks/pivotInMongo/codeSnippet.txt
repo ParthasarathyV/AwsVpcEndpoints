@@ -163,3 +163,28 @@ AggregationOperation projectOperation = context -> new Document("$project",
         .append("rows", "$rows"))
 );
 
+openapi: 3.0.0
+info:
+  title: Aggregation API
+  version: 1.0.0
+servers:
+  - url: /api
+paths:
+  /aggregation-results:
+    get:
+      summary: Get Aggregation Results
+      description: Returns the results of an aggregation query as a JSON object.
+      responses:
+        '200':
+          description: Successful response with aggregation data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+
