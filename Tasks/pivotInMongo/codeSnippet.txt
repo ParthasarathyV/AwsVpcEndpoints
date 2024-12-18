@@ -152,3 +152,14 @@ AggregationOperation addFieldsOperation = context -> new Document("$addFields",
         ))
     )))
 );
+
+
+
+AggregationOperation projectOperation = context -> new Document("$project",
+    new Document("_id", 0)
+        .append("response", new Document("pivotFields", new Document("$concatArrays", Arrays.asList(
+                "$pivotFields1", "$pivotFields2"
+        )))
+        .append("rows", "$rows"))
+);
+
