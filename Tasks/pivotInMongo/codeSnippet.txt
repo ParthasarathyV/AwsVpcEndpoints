@@ -188,3 +188,59 @@ paths:
                       type: object
                       additionalProperties: true
 
+
+
+
+
+
+
+openapi: 3.0.0
+info:
+  title: Aggregation API
+  version: 1.0.0
+servers:
+  - url: /api
+paths:
+  /aggregation-results:
+    post:
+      summary: Submit Aggregation Query
+      description: Accepts an input to perform an aggregation query and returns the results as a JSON object.
+      requestBody:
+        description: Input data for the aggregation query.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  description: Type of data for the aggregation
+                benefitsReportingLevel:
+                  type: string
+                  description: Level of benefits reporting
+                state:
+                  type: string
+                  description: State of the data
+                rag:
+                  type: string
+                  description: RAG status (Red, Amber, Green)
+                forecastTotalCostNextYear:
+                  type: number
+                  description: Forecast total cost for the next year
+                totalCostNextYear:
+                  type: number
+                  description: Total cost for the next year
+      responses:
+        '200':
+          description: Successful response with aggregation data.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
