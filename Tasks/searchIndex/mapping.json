@@ -1,0 +1,91 @@
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "title": {
+        "type": "string"
+      },
+      "shortId": {
+        "type": "string"
+      },
+      "piBusinessCase": {
+        "type": "string"
+      },
+      "productName": {
+        "type": "string"
+      },
+      "areaProduct": {
+        "type": "string"
+      },
+      "productOwner": {
+        "type": "string"
+      },
+      "owner": {
+        "type": "string"
+      },
+      "coOwners": {
+        "type": "string"
+      },
+      "agreementApprovers": {
+        "type": "string"
+      },
+      "collaborators": {
+        "type": "string"
+      },
+      "cto": {
+        "type": "string"
+      },
+      "cbt": {
+        "type": "string"
+      },
+      "sponsor": {
+        "type": "string"
+      },
+      "primaryFbm": {
+        "type": "string"
+      },
+      "additionalFbm": {
+        "type": "string"
+      },
+      "governanceStructure": {
+        "type": "string"
+      },
+      "salesLead": {
+        "type": "string"
+      },
+      "quantLead": {
+        "type": "string"
+      },
+      "uxLead": {
+        "type": "string"
+      },
+      "productLead": {
+        "type": "string"
+      },
+      "operationsLead": {
+        "type": "string"
+      },
+      "technologyLead": {
+        "type": "string"
+      },
+      "reportingLead": {
+        "type": "string"
+      },
+      "programManager": {
+        "type": "string"
+      },
+      "labels": {
+        "type": "string"
+      },
+      "milestoneDeliveryTeams": {
+        "type": "string"
+      },
+      "overview": {
+        "type": "string"
+      },
+      "benefitsSummary": {
+        "type": "string"
+      }
+    }
+  }
+}
