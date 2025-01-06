@@ -244,3 +244,31 @@ paths:
                     items:
                       type: object
                       additionalProperties: true
+
+
+
+
+
+import org.springframework.data.mongodb.core.aggregation.AddFieldsOperation;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+
+final AddFieldsOperation addFieldsOperation = Aggregation.addFields()
+    .addField("pivotField1").withValue(
+        AggregationExpressions.concat(
+            Aggregation.field("_id.state"),
+            Aggregation.literal("_"),
+            Aggregation.field("_id.rag"),
+            Aggregation.literal("_"),
+            Aggregation.field("forecastTotalCostNextYear")
+        )
+    )
+    .addField("pivotField2").withValue(
+        AggregationExpressions.concat(
+            Aggregation.field("_id.state"),
+            Aggregation.literal("_"),
+            Aggregation.field("_id.rag"),
+            Aggregation.literal("_"),
+            Aggregation.field("totalCostNextYear")
+        )
+    )
+    .build();
