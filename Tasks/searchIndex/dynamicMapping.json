@@ -2,11 +2,12 @@
   "mappings": {
     "dynamic": true
   },
-  "analyzers": {
-    "default": {
+  "analyzers": [
+    {
+      "name": "default",
       "charFilters": [],
       "tokenizer": "keyword",
       "tokenFilters": ["lowercase"]
     }
-  }
+  ]
 }
