@@ -60,7 +60,12 @@ public class TextFilterStrategy implements FilterStrategy<TextFilter> {
         };
     }
 
-    private AggregationOperation contextualSearchOperation(Document searchQuery) {
-        return context -> new Document("$search", searchQuery);
-    }
+ private AggregationOperation contextualSearchOperation(Document searchQuery) {
+    // Add the 'index' parameter to the search query to use 'filter_index'
+    Document searchWithIndex = new Document("$search", 
+        new Document("index", "filter_index") // specify your index name here
+            .append("compound", searchQuery)); // Include your search query
+    return context -> searchWithIndex;
+}
+
 }
