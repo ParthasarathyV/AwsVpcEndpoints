@@ -63,3 +63,12 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+
+1. Made wildcard queries and regex queries through Atlas Search Index and found that these are actually so Slower, however I was querying with 2 characters.
+
+2. Created a Excel with performance difference between actual search Filters and match filters and presented it to Anil. We have to further investigate in order to know about the need of Atlas search with Grid
+
+3. Had a call with Brad, had few doubts on search index. Checking if the implementation is right or not right. Got some clarity.
+
+4. Planning to implement two search index 1 with standard analyzer and second one with keyword
