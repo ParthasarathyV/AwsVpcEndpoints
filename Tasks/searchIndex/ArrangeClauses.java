@@ -1,30 +1,22 @@
 public static AggregationOperation contextualSearchOperation(List<Document> searchQuery) {
-    // Create lists to hold grouped clauses for must, mustNot, and should
-    List<Document> mustClauses = new ArrayList<>();
-    List<Document> mustNotClauses = new ArrayList<>();
-    List<Document> shouldClauses = new ArrayList<>();
+    // Group the clauses into separate lists
+    final List<Document> mustClauses = searchQuery.stream()
+        .filter(doc -> doc.containsKey("must"))
+        .map(doc -> (Document) doc.get("must"))
+        .toList();
 
-    // Iterate through the list of documents
-    for (Document clause : searchQuery) {
-        clause.forEach((key, value) -> {
-            switch (key) {
-                case "must":
-                    mustClauses.add((Document) value);
-                    break;
-                case "mustNot":
-                    mustNotClauses.add((Document) value);
-                    break;
-                case "should":
-                    shouldClauses.add((Document) value);
-                    break;
-                default:
-                    throw new IllegalArgumentException("Unexpected key: " + key);
-            }
-        });
-    }
+    final List<Document> mustNotClauses = searchQuery.stream()
+        .filter(doc -> doc.containsKey("mustNot"))
+        .map(doc -> (Document) doc.get("mustNot"))
+        .toList();
 
-    // Create the compound query
-    Document compoundQuery = new Document();
+    final List<Document> shouldClauses = searchQuery.stream()
+        .filter(doc -> doc.containsKey("should"))
+        .map(doc -> (Document) doc.get("should"))
+        .toList();
+
+    // Create the compound query using only final variables
+    final Document compoundQuery = new Document();
     if (!mustClauses.isEmpty()) {
         compoundQuery.append("must", mustClauses);
     }
