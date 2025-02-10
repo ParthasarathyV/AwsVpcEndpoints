@@ -34,9 +34,9 @@
               "$concatArrays": [
                 "$$value",
                 [
-                  { "k": { "$concat": ["totalCost", "$$this.k"] }, "v": "$$this.v.totalCost" },
-                  { "k": { "$concat": ["budgetTotalCost", "$$this.k"] }, "v": "$$this.v.budgetTotalCost" },
-                  { "k": { "$concat": ["forecastTotalCost", "$$this.k"] }, "v": "$$this.v.forecastTotalCost" }
+                  { "k": { "$concat": ["totalCost", "$$this.k"] }, "v": { "$sum": "$$this.v.totalCost" } },
+                  { "k": { "$concat": ["budgetTotalCost", "$$this.k"] }, "v": { "$sum": "$$this.v.budgetTotalCost" } },
+                  { "k": { "$concat": ["forecastTotalCost", "$$this.k"] }, "v": { "$sum": "$$this.v.forecastTotalCost" } }
                 ]
               ]
             }
