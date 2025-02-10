@@ -27,14 +27,19 @@
       "type": "$_id",
       "outputFields": {
         "$arrayToObject": {
-          "$map": {
+          "$reduce": {
             "input": { "$objectToArray": "$mergedFinancials" },
-            "as": "yearData",
-            "in": [
-              { "k": { "$concat": ["totalCost", "$$yearData.k"] }, "v": "$$yearData.v.totalCost" },
-              { "k": { "$concat": ["budgetTotalCost", "$$yearData.k"] }, "v": "$$yearData.v.budgetTotalCost" },
-              { "k": { "$concat": ["forecastTotalCost", "$$yearData.k"] }, "v": "$$yearData.v.forecastTotalCost" }
-            ]
+            "initialValue": [],
+            "in": {
+              "$concatArrays": [
+                "$$value",
+                [
+                  { "k": { "$concat": ["totalCost", "$$this.k"] }, "v": "$$this.v.totalCost" },
+                  { "k": { "$concat": ["budgetTotalCost", "$$this.k"] }, "v": "$$this.v.budgetTotalCost" },
+                  { "k": { "$concat": ["forecastTotalCost", "$$this.k"] }, "v": "$$this.v.forecastTotalCost" }
+                ]
+              ]
+            }
           }
         }
       }
