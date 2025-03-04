@@ -1,0 +1,68 @@
+openapi: "3.0.0"
+info:
+  title: Grid Service
+  version: 1.0.0
+  description: API for handling proposals with different processing logic based on isPivot.
+
+paths:
+  /process-proposal:
+    post:
+      summary: Process proposal based on isPivot flag
+      description: Calls different controller methods based on isPivot value.
+      operationId: processProposal
+      tags:
+        - proposals
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: "#/components/schemas/GridRequest"
+                - $ref: "#/components/schemas/NonPivotRequest"
+              discriminator:
+                propertyName: isPivot
+                mapping:
+                  true: "#/components/schemas/GridRequest"
+                  false: "#/components/schemas/NonPivotRequest"
+      responses:
+        "200":
+          description: Success response based on isPivot flag
+          content:
+            application/json:
+              oneOf:
+                - type: string  # Pivot case returns raw string
+                - $ref: "#/components/schemas/NonPivotResponse"  # Non-pivot case returns structured response
+
+components:
+  schemas:
+    GridRequest:
+      type: object
+      properties:
+        isPivot:
+          type: boolean
+          enum: [true]
+        gridData:
+          type: string
+      required: [isPivot, gridData]
+
+    NonPivotRequest:
+      type: object
+      properties:
+        isPivot:
+          type: boolean
+          enum: [false]
+        nonPivotData:
+          type: string
+      required: [isPivot, nonPivotData]
+
+    NonPivotResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        nonPivotResult:
+          type: string
+      required: [message, nonPivotResult]
