@@ -1,0 +1,86 @@
+// FinancialGridCollection 
+{
+  "_id": ObjectId("..."),
+  "level": "L1",
+  "taxonomyL1": "Technology Modernization",
+  "taxonomyL2": null,
+  "taxonomyL3": null,
+  "cost": 100
+}
+
+{
+  "_id": ObjectId("..."),
+  "level": "L2",
+  "taxonomyL1": "Technology Modernization",
+  "taxonomyL2": "Hygenic Tech Updates",
+  "taxonomyL3": null,
+  "cost": 20
+}
+
+{
+  "_id": ObjectId("..."),
+  "level": "L3",
+  "taxonomyL1": "Technology Modernization",
+  "taxonomyL2": "Hygenic Tech Updates",
+  "taxonomyL3": "Cyber Hygenic Tech Updates",
+  "cost": 10
+}
+
+{
+  "_id": ObjectId("..."),
+  "level": "L2",
+  "taxonomyL1": "Technology Modernization",
+  "taxonomyL2": "Enablement",
+  "taxonomyL3": null,
+  "cost": 20
+}
+
+{
+  "_id": ObjectId("..."),
+  "level": "L3",
+  "taxonomyL1": "Technology Modernization",
+  "taxonomyL2": "Enablement",
+  "taxonomyL3": "Cyber",
+  "cost": 10
+},
+{
+  "_id": ObjectId("..."),
+  "level": "L3",
+  "taxonomyL1": "Technology Modernization",
+  "taxonomyL2": "Enablement",
+  "taxonomyL3": "Enablement",
+  "cost": 10
+}
+
+
+// Financials
+
+{
+  "_id": ObjectId("..."),
+  "name": "Technology Modernization",
+  "L1": {
+    "name": "Technology Modernization",
+    "cost": 100
+  },
+  "L2": [
+    { "name": "Enablement", "cost": 20 },
+    { "name": "Hygenic Tech Updates", "cost": 20 },
+    { "name": "Infra Modernization", "cost": 20 },
+    { "name": "On-Prem", "cost": 20 },
+    { "name": "Public Cloud", "cost": 10 },
+    { "name": "Retire", "cost": 10 }
+  ],
+  "L3": [
+    { "name": "Enablement", "cost": 10 },
+    { "name": "Cyber", "cost": 10 },
+    { "name": "Cyber Hygenic Tech Updates", "cost": 10 },
+    { "name": "IAM", "cost": 10 },
+    { "name": "Data Center Upgrades", "cost": 10 },
+    { "name": "Network Optimization", "cost": 10 },
+    { "name": "Onprem Infrastructure", "cost": 10 },
+    { "name": "Onprem Security", "cost": 10 },
+    { "name": "Cloud Migration", "cost": 5 },
+    { "name": "Cloud Optimization", "cost": 5 },
+    { "name": "Legacy System Retire", "cost": 10 }
+  ]
+}
