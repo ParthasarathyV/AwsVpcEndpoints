@@ -324,3 +324,224 @@ db.yourCollection.aggregate([
       }
     },
 ]);
+
+
+
+// Required indexes for optimization:
+// db.yourCollection.createIndex({ longId: 1 })
+// db.appMappings.createIndex({ ipLongId: 1, scenario: 1 })
+// db.financialsLevel3.createIndex({ ipLongId: 1, scenario: 1 })
+
+db.yourCollection.aggregate([
+    // 1) Initial match to filter documents early
+    {
+      $match: {
+        longId: { $exists: true }
+      }
+    },
+
+    // 2) Lookup from "appMappings" with optimized matching
+    {
+      $lookup: {
+        from: "appMappings",
+        let: { ipLongIdF1: "$longId" },
+        pipeline: [
+          {
+            $match: {
+              $and: [
+                { scenario: "outlook" }, // Static condition outside $expr
+                { $expr: { $eq: ["$ipLongId", "$$ipLongIdF1"] } }
+              ]
+            }
+          },
+          {
+            $project: {
+              _id: 1,
+              scenario: 1,
+              months: 1
+            }
+          }
+        ],
+        as: "matched"
+      }
+    },
+
+    // 3) Filter out documents with no matches
+    {
+      $match: {
+        "matched": { $exists: true, $ne: [] }
+      }
+    },
+
+    // 4) Unwind "matched" with null check
+    {
+      $unwind: {
+        path: "$matched",
+        preserveNullAndEmptyArrays: false
+      }
+    },
+
+    // 5) Lookup from "financialsLevel3" with optimized matching
+    {
+      $lookup: {
+        from: "financialsLevel3",
+        let: {
+          ipLongIdF3: "$longId",
+          scenarioF3: "$matched.scenario"
+        },
+        pipeline: [
+          {
+            $match: {
+              $and: [
+                { scenario: "outlook" },
+                { $expr: { $eq: ["$ipLongId", "$$ipLongIdF3"] } }
+              ]
+            }
+          },
+          {
+            $project: {
+              year: 1,
+              monthCost: 1,
+              monthHc: 1
+            }
+          }
+        ],
+        as: "F3"
+      }
+    },
+
+    // 6) Filter out documents with no F3 matches
+    {
+      $match: {
+        "F3": { $exists: true, $ne: [] }
+      }
+    },
+
+    // 7) Unwind "F3"
+    {
+      $unwind: {
+        path: "$F3",
+        preserveNullAndEmptyArrays: false
+      }
+    },
+
+    // 8) Group with optimized fields
+    {
+      $group: {
+        _id: {
+          ipLongId: "$longId",
+          year: "$F3.year",
+          idTrack: "$matched._id",
+          appSplitMonths: "$matched.months"
+        },
+        allMonthCosts: { $push: "$F3.monthCost" },
+        allMonthHC: { $push: "$F3.monthHc" }
+      }
+    },
+
+    // 9) Calculate sums for monthCostSum & monthHcSum
+    {
+      $addFields: {
+        monthCostSum: {
+          $reduce: {
+            input: "$allMonthCosts",
+            initialValue: [],
+            in: {
+              $map: {
+                input: { $range: [0, 12] },
+                as: "i",
+                in: {
+                  $add: [
+                    { $ifNull: [{ $arrayElemAt: ["$$value", "$$i"] }, 0] },
+                    { $ifNull: [{ $arrayElemAt: ["$$this", "$$i"] }, 0] }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        monthHcSum: {
+          $reduce: {
+            input: "$allMonthHC",
+            initialValue: [],
+            in: {
+              $map: {
+                input: { $range: [0, 12] },
+                as: "i",
+                in: {
+                  $add: [
+                    { $ifNull: [{ $arrayElemAt: ["$$value", "$$i"] }, 0] },
+                    { $ifNull: [{ $arrayElemAt: ["$$this", "$$i"] }, 0] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    // 10) Clean up intermediate arrays
+    {
+      $project: {
+        allMonthCosts: 0,
+        allMonthHC: 0
+      }
+    },
+
+    // 11) Add appSplitMonthsCost with better structure
+    {
+      $addFields: {
+        appSplitMonthsCost: {
+          $map: {
+            input: "$_id.appSplitMonths",
+            as: "monthData",
+            in: {
+              $mergeObjects: [
+                "$$monthData",
+                {
+                  application: {
+                    $map: {
+                      input: "$$monthData.application",
+                      as: "app",
+                      in: {
+                        $mergeObjects: [
+                          "$$app",
+                          {
+                            app_cost: {
+                              $multiply: [
+                                "$$app.app_percentage",
+                                { $arrayElemAt: ["$monthCostSum", { $indexOfArray: ["$_id.appSplitMonths", "$$monthData"] }] }
+                              ]
+                            },
+                            cap_cost: {
+                              $multiply: [
+                                "$$app.is_cap_percent",
+                                { $arrayElemAt: ["$monthCostSum", { $indexOfArray: ["$_id.appSplitMonths", "$$monthData"] }] }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+
+    // 12) Final projection to clean up output
+    {
+      $project: {
+        _id: 0,
+        ipLongId: "$_id.ipLongId",
+        year: "$_id.year",
+        monthCostSum: 1,
+        monthHcSum: 1,
+        appSplitMonthsCost: 1
+      }
+    },
+]);
