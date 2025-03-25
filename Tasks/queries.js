@@ -21,3 +21,57 @@ db.financialLevel3.updateMany(
     }
   ]
 )
+
+
+db.collection.aggregate([
+  {
+    $group: {
+      _id: "$year",
+      monthCostSum: {
+        $reduce: {
+          input: "$monthCost",
+          initialValue: Array.from({length: 12}, () => 0),
+          in: {
+            $map: {
+              input: { $range: [0, { $size: "$$value" }] },
+              as: "index",
+              in: {
+                $add: [
+                  { $arrayElemAt: ["$$value", "$$index"] },
+                  { $arrayElemAt: ["$monthCost", "$$index"] }
+                ]
+              }
+            }
+          }
+        }
+      },
+      monthHcSum: {
+        $reduce: {
+          input: "$monthHc",
+          initialValue: Array.from({length: 12}, () => 0),
+          in: {
+            $map: {
+              input: { $range: [0, { $size: "$$value" }] },
+              as: "index",
+              in: {
+                $add: [
+                  { $arrayElemAt: ["$$value", "$$index"] },
+                  { $arrayElemAt: ["$monthHc", "$$index"] }
+                ]
+              }
+            }
+          }
+        }
+      },
+      docs: { $push: "$$ROOT" }
+    }
+  },
+  {
+    $project: {
+      year: "$_id",
+      monthCostSum: 1,
+      monthHcSum: 1,
+      F3: { $size: "$docs" }
+    }
+  }
+])
