@@ -75,3 +75,53 @@ db.collection.aggregate([
     }
   }
 ])
+
+
+
+{
+  $addFields: {
+    appSplitMonths: {
+      $map: {
+        input: { $range: [0, { $size: "$appSplitMonths" }] },
+        as: "i",
+        in: {
+          $let: {
+            vars: {
+              monthData: { $arrayElemAt: ["$appSplitMonths", "$$i"] }
+            },
+            in: {
+              // Merge the original fields of monthData (like 'month' or others)
+              // and overwrite the 'applications' array with a new version that has the 'cost' field
+              $mergeObjects: [
+                "$$monthData",
+                {
+                  applications: {
+                    $map: {
+                      input: "$$monthData.applications",
+                      as: "app",
+                      in: {
+                        $mergeObjects: [
+                          "$$app",
+                          {
+                            cost: {
+                              $multiply: [
+                                // The app's percentage
+                                "$$app.app_percentage",
+                                // The monthCostSum value at index i
+                                { $arrayElemAt: ["$monthCostSum", "$$i"] }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
