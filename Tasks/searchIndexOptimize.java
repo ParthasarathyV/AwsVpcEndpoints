@@ -43,3 +43,30 @@ AggregationOperation searchOp = (ctx) -> searchStage;
 List<AggregationOperation> aggOps = new ArrayList<>();
 aggOps.add(searchOp);
 // ... add more stages if needed ...
+
+
+
+// Suppose the user typed: "isha fhhf"
+String[] tokens = quickFilter.split("\\s+"); // ["isha", "fhhf"]
+
+List<Document> shouldClauses = new ArrayList<>();
+for (String token : tokens) {
+    // For partial substring matching, wrap in '*' on both sides
+    String wildcardQuery = "*" + token + "*";
+    Document wildcardDoc = new Document("wildcard", new Document()
+        .append("query", wildcardQuery)
+        .append("path", indexFields)        // the array of fields
+        .append("allowAnalyzedField", true)
+    );
+    shouldClauses.add(wildcardDoc);
+}
+
+Document compoundDoc = new Document("compound", new Document()
+    .append("should", shouldClauses)
+    .append("minimumShouldMatch", 1)
+);
+
+Document searchStage = new Document("$search", new Document()
+    .append("index", "quickFilter")
+    .appendAll(compoundDoc)
+);
