@@ -32,3 +32,34 @@
     }
   }
 ]
+
+
+// Only needed in mongosh if UUID isn't already available
+const { UUID } = require('bson');
+
+// Get reference to collection
+const collection = db.getCollection("financialLevel3");
+
+// Find all documents with scenario = "budget"
+const cursor = collection.find({ scenario: "budget" });
+
+let updatedCount = 0;
+
+while (cursor.hasNext()) {
+  const doc = cursor.next();
+
+  // Generate new UUID
+  const newUUID = UUID();
+
+  // Update document with new planId
+  const result = collection.updateOne(
+    { _id: doc._id },
+    { $set: { planId: newUUID } }
+  );
+
+  if (result.modifiedCount === 1) {
+    updatedCount++;
+  }
+}
+
+print(`✅ Updated ${updatedCount} documents in financialLevel3 with new planId UUIDs.`);
