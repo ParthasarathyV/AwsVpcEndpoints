@@ -137,3 +137,54 @@ if (bulkOps.length > 0) {
 }
 
 print("🚀 Fire-and-forget-style updates sent using bulkWrite.");
+
+function generateUUIDv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+const collection = db.getCollection("financialLevel3");
+const cursor = collection.find({ scenario: "budget" });
+
+const bulkOps = [];
+let totalMatched = 0;
+let totalUpdated = 0;
+let batchNumber = 1;
+const batchSize = 1000;
+
+while (cursor.hasNext()) {
+  const doc = cursor.next();
+  const uuid = generateUUIDv4();
+
+  bulkOps.push({
+    updateOne: {
+      filter: { _id: doc._id },
+      update: { $set: { planId: uuid } }
+    }
+  });
+
+  totalMatched++;
+
+  if (bulkOps.length === batchSize) {
+    const result = collection.bulkWrite(bulkOps, { ordered: false });
+    totalUpdated += result.modifiedCount;
+
+    print(`Batch ${batchNumber++}: Updated ${result.modifiedCount} of ${bulkOps.length}`);
+    print(`Total updated: ${totalUpdated} | Pending: ${totalMatched - totalUpdated}`);
+
+    bulkOps.length = 0;
+  }
+}
+
+if (bulkOps.length > 0) {
+  const result = collection.bulkWrite(bulkOps, { ordered: false });
+  totalUpdated += result.modifiedCount;
+
+  print(`Final Batch ${batchNumber}: Updated ${result.modifiedCount} of ${bulkOps.length}`);
+  print(`Total updated: ${totalUpdated} | Pending: ${totalMatched - totalUpdated}`);
+}
+
+print(`Update complete. ${totalUpdated} of ${totalMatched} documents updated.`);
