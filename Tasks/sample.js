@@ -34,6 +34,7 @@
 ]
 
 
+
 // Only needed in mongosh if UUID isn't already available
 const { UUID } = require('bson');
 
@@ -188,3 +189,81 @@ if (bulkOps.length > 0) {
 }
 
 print(`Update complete. ${totalUpdated} of ${totalMatched} documents updated.`);
+
+db.appMappings.aggregate([
+  {
+    $addFields: {
+      "appMappings.yearlyValue": {
+        $let: {
+          vars: {
+            allApps: {
+              $reduce: {
+                input: "$appMappings.monthValues",
+                initialValue: [],
+                in: {
+                  $concatArrays: ["$$value", "$$this.application"]
+                }
+              }
+            }
+          },
+          in: {
+            $reduce: {
+              input: "$$allApps",
+              initialValue: [],
+              in: {
+                $let: {
+                  vars: {
+                    existing: {
+                      $filter: {
+                        input: "$$value",
+                        cond: { $eq: ["$$this.app_id", "$$this.app_id"] }
+                      }
+                    }
+                  },
+                  in: {
+                    $cond: [
+                      {
+                        $gt: [{ $size: {
+                          $filter: {
+                            input: "$$value",
+                            cond: { $eq: ["$$this.app_id", "$$this.app_id"] }
+                          }
+                        } }, 0]
+                      },
+                      {
+                        $map: {
+                          input: "$$value",
+                          as: "app",
+                          in: {
+                            $cond: [
+                              { $eq: ["$$app.app_id", "$$this.app_id"] },
+                              {
+                                app_id: "$$app.app_id",
+                                cap_cost: { $add: ["$$app.cap_cost", "$$this.cap_cost"] },
+                                app_cost: { $add: ["$$app.app_cost", "$$this.app_cost"] }
+                              },
+                              "$$app"
+                            ]
+                          }
+                        }
+                      },
+                      {
+                        $concatArrays: ["$$value", [
+                          {
+                            app_id: "$$this.app_id",
+                            cap_cost: "$$this.cap_cost",
+                            app_cost: "$$this.app_cost"
+                          }
+                        ]]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+])
