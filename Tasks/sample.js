@@ -267,3 +267,64 @@ db.appMappings.aggregate([
     }
   }
 ])
+
+db.appMappings.aggregate([
+  {
+    $addFields: {
+      "appMappings.yearlyValue": {
+        $reduce: {
+          input: {
+            $reduce: {
+              input: "$appMappings.monthValues",
+              initialValue: [],
+              in: { $concatArrays: ["$$value", "$$this.application"] }
+            }
+          },
+          initialValue: [],
+          in: {
+            $let: {
+              vars: {
+                existing: {
+                  $filter: {
+                    input: "$$value",
+                    as: "app",
+                    cond: { $eq: ["$$app.app_id", "$$this.app_id"] }
+                  }
+                }
+              },
+              in: {
+                $cond: [
+                  { $gt: [{ $size: "$$existing" }, 0] },
+                  {
+                    $map: {
+                      input: "$$value",
+                      as: "app",
+                      in: {
+                        $cond: [
+                          { $eq: ["$$app.app_id", "$$this.app_id"] },
+                          {
+                            app_id: "$$app.app_id",
+                            cap_cost: { $add: ["$$app.cap_cost", "$$this.cap_cost"] },
+                            app_cost: { $add: ["$$app.app_cost", "$$this.app_cost"] }
+                          },
+                          "$$app"
+                        ]
+                      }
+                    }
+                  },
+                  {
+                    $concatArrays: ["$$value", [{
+                      app_id: "$$this.app_id",
+                      cap_cost: "$$this.cap_cost",
+                      app_cost: "$$this.app_cost"
+                    }]]
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+])
