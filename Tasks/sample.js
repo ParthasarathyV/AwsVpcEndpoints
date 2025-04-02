@@ -99,3 +99,41 @@ while (cursor.hasNext()) {
 }
 
 print(`✅ Updated ${updatedCount} documents in financialLevel3 with new planId UUIDs.`);
+
+function generateUUIDv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+const collection = db.getCollection("financialLevel3");
+const cursor = collection.find({ scenario: "budget" });
+
+const bulkOps = [];
+
+while (cursor.hasNext()) {
+  const doc = cursor.next();
+  const uuid = generateUUIDv4();
+
+  bulkOps.push({
+    updateOne: {
+      filter: { _id: doc._id },
+      update: { $set: { planId: uuid } }
+    }
+  });
+
+  // To avoid memory overload, flush in batches of 1000
+  if (bulkOps.length === 1000) {
+    collection.bulkWrite(bulkOps, { ordered: false });
+    bulkOps.length = 0; // reset
+  }
+}
+
+// Flush any remaining operations
+if (bulkOps.length > 0) {
+  collection.bulkWrite(bulkOps, { ordered: false });
+}
+
+print("🚀 Fire-and-forget-style updates sent using bulkWrite.");
