@@ -63,3 +63,39 @@ while (cursor.hasNext()) {
 }
 
 print(`✅ Updated ${updatedCount} documents in financialLevel3 with new planId UUIDs.`);
+
+
+
+// Simple UUID v4 generator (RFC4122 compliant)
+function generateUUIDv4() {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
+// Reference to your collection
+const collection = db.getCollection("financialLevel3");
+
+// Find matching documents
+const cursor = collection.find({ scenario: "budget" });
+
+let updatedCount = 0;
+
+while (cursor.hasNext()) {
+  const doc = cursor.next();
+
+  const newUUID = generateUUIDv4();
+
+  const result = collection.updateOne(
+    { _id: doc._id },
+    { $set: { planId: newUUID } }
+  );
+
+  if (result.modifiedCount === 1) {
+    updatedCount++;
+  }
+}
+
+print(`✅ Updated ${updatedCount} documents in financialLevel3 with new planId UUIDs.`);
