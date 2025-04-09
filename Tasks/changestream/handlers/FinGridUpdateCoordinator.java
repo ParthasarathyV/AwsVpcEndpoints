@@ -8,30 +8,31 @@ import org.springframework.stereotype.Component;
 public class FinGridUpdateCoordinator {
 
     @Autowired 
-    private FinancialsLevel3Handler financialsLevel3Handler;
+    private FinancialLevel3Handler financialLevel3Handler;
     
     @Autowired 
-    private AppMappingsHandler appMappingsHandler;
+    private AppMappingHandler appMappingHandler;
     
     @Autowired 
-    private BillingKeyHeaderHandler billingKeyHeaderHandler;
+    private BillingKeyHandler billingKeyHandler;
     
-    // TaxonomyHandler can be added later.
-
+    // For complete update from financialLevel3 changes:
     public void handleFinancialLevel3Change(Document doc) {
-        financialsLevel3Handler.process(doc);
+        financialLevel3Handler.process(doc);
     }
 
-    // For changes in dependent collections, currently we re-trigger a full update.
+    // For changes isolated to appMappings only:
     public void handleAppMappingChange(Document doc) {
-        financialsLevel3Handler.process(doc);
+        appMappingHandler.updateOnlyAppMappings(doc);
     }
 
+    // For changes isolated to billingKeyHeader only:
     public void handleBillingKeyChange(Document doc) {
-        financialsLevel3Handler.process(doc);
+        billingKeyHandler.updateOnlyBillingKey(doc);
     }
     
+    // For taxonomy changes (stub for now):
     public void handleTaxonomyChange(Document doc) {
-        financialsLevel3Handler.process(doc);
+        // Future implementation...
     }
 }
