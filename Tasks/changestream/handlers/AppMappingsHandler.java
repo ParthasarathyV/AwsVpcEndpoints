@@ -6,6 +6,10 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Component;
 import java.util.*;
 
+import static org.springframework.data.mongodb.core.query.Criteria.where;
+import static org.springframework.data.mongodb.core.query.Query.query;
+import static org.springframework.data.mongodb.core.query.Update.update;
+
 @Component
 public class AppMappingsHandler {
 
@@ -18,11 +22,9 @@ public class AppMappingsHandler {
         Integer year = doc.getInteger("year");
 
         List<Document> relatedMappings = mongoTemplate.find(
-            org.springframework.data.mongodb.core.query.Query.query(
-                org.springframework.data.mongodb.core.query.Criteria.where("ipLongId").is(ipLongId)
-                        .and("scenario").is(scenario)
-                        .and("year").is(year)
-            ),
+            query(where("ipLongId").is(ipLongId)
+                  .and("scenario").is(scenario)
+                  .and("year").is(year)),
             Document.class,
             "appMappings"
         );
@@ -74,5 +76,37 @@ public class AppMappingsHandler {
         List<Document> yearlyValues = new ArrayList<>(yearlyMap.values());
         return new Document("monthValues", monthValues)
                 .append("yearlyValues", yearlyValues);
+    }
+
+    // Isolated update: Only update the appMappings field in FinGrid.
+    public void updateOnlyAppMappings(Document doc) {
+        String ipLongId = doc.getString("ipLongId");
+        String scenario = doc.getString("scenario");
+        Integer year = doc.getInteger("year");
+        String dfKey = scenario + year;
+
+        // Retrieve existing FinGrid document
+        Document finGridDoc = mongoTemplate.findOne(
+            query(where("longId").is(ipLongId)), 
+            Document.class,
+            "FinGrid"
+        );
+        if (finGridDoc == null) return;
+        Document detailedFinancials = (Document) finGridDoc.get("detailedFinancials");
+        if (detailedFinancials == null || !detailedFinancials.containsKey(dfKey)) return;
+        Document dfSection = (Document) detailedFinancials.get(dfKey);
+        List<Double> currentMonthCost = (List<Double>) dfSection.get("monthCost");
+        if (currentMonthCost == null || currentMonthCost.size() != 12) return;
+        
+        Document newAppMappings = buildUpdateSection(doc, currentMonthCost);
+        
+        // Update only the appMappings part of FinGrid
+        mongoTemplate.updateFirst(
+            query(where("longId").is(ipLongId)),
+            new org.springframework.data.mongodb.core.query.Update().set("detailedFinancials." + dfKey + ".appMappings", newAppMappings),
+            "FinGrid"
+        );
+        
+        System.out.printf("[AppMappingHandler] Updated appMappings for %s | %s | %d%n", ipLongId, scenario, year);
     }
 }
