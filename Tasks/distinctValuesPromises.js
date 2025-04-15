@@ -1,9 +1,8 @@
-// script.js
-// This script is intended for use in mongosh.
-// It will run distinct queries for each of the specified fields,
-// sort the results, and print a JSON object mapping each field to its distinct values.
+// distinctValuesWithTiming.js
+// This script collects distinct values for multiple fields from the proposals collection,
+// logs the time taken for each distinct query, and outputs the final results.
 
-// Update your field array as needed:
+// List the fields for which you want distinct values:
 const fields = [
   "rag",
   "executionState",
@@ -23,21 +22,39 @@ const fields = [
   "milestoneDeliveryTeams"
 ];
 
-// This object will hold the distinct values for each field
+// Object to hold the final results for each field
 const results = {};
 
-// Create an array of Promises for each field
-const distinctPromises = fields.map(field => {
-  return db.proposals.distinct(field).then(values => {
-    // Sort the array of distinct values for consistent output
-    values.sort();
-    // Store it in our results object under the field name
-    results[field] = values;
-  });
+// Record start of entire operation
+const overallStart = new Date().getTime();
+
+// Loop through each field and execute the distinct query synchronously
+fields.forEach(function(field) {
+  // Log the start time for this field
+  const startTime = new Date().getTime();
+  
+  // Run the distinct query for the current field
+  let distinctValues = db.proposals.distinct(field);
+  
+  // Log the end time for this query
+  const endTime = new Date().getTime();
+  
+  // Calculate the time difference in milliseconds
+  const diff = endTime - startTime;
+  
+  // Sort the distinct values for predictable output
+  distinctValues.sort();
+  
+  // Save the sorted values in the results object
+  results[field] = distinctValues;
+  
+  // Log the time taken for this distinct query
+  print("Field: " + field + " - Time taken: " + diff + " ms");
 });
 
-// Wait for all distinct queries to finish
-await Promise.all(distinctPromises);
+// Log the overall time taken
+const overallEnd = new Date().getTime();
+print("Overall time taken: " + (overallEnd - overallStart) + " ms");
 
-// Print the final JSON object
+// Finally, print the aggregated results
 printjson(results);
