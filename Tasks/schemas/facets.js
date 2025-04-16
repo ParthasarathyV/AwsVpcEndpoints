@@ -106,8 +106,177 @@ db.billingKeyHeaderTemp.aggregate([
           }
         }
       },
+            sdmL5: {
+        $map: {
+          input: { $setUnion: "$sdmL5.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL5",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
 
-      // sdmL7 to sdmL13: repeat same logic as above (can generate the full snippet if you'd like)
+      sdmL6: {
+        $map: {
+          input: { $setUnion: "$sdmL6.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL6",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      sdmL7: {
+        $map: {
+          input: { $setUnion: "$sdmL7.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL7",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      sdmL8: {
+        $map: {
+          input: { $setUnion: "$sdmL8.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL8",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      sdmL9: {
+        $map: {
+          input: { $setUnion: "$sdmL9.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL9",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      sdmL10: {
+        $map: {
+          input: { $setUnion: "$sdmL10.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL10",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      sdmL11: {
+        $map: {
+          input: { $setUnion: "$sdmL11.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL11",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      sdmL12: {
+        $map: {
+          input: { $setUnion: "$sdmL12.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL12",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
+      sdmL13: {
+        $map: {
+          input: { $setUnion: "$sdmL13.name" },
+          as: "n",
+          in: {
+            name: "$$n",
+            pct: {
+              $sum: {
+                $map: {
+                  input: "$sdmL13",
+                  as: "entry",
+                  in: { $cond: [{ $eq: ["$$entry.name", "$$n"] }, "$$entry.pct", 0] }
+                }
+              }
+            }
+          }
+        }
+      },
+
     }
   },
 
