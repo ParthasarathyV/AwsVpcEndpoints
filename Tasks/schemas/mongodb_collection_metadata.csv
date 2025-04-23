@@ -1,0 +1,11 @@
+Collection Name,Document Count,Avg Doc Size (kB),Designed in POC,Relationship,Notes,Schemas
+financialsLevel1,8K,3.13,Yes,–,Base IP Proposals Meta Collection,financialsLevel1
+outlookF3,2M,1.0,Yes,"financialsLevel1 via longId → ipLongId, planId, costId","Cost level details for each proposal, scenario",outlookF3
+liveF3,2M,1.0,No,"financialsLevel1 via longId → ipLongId, planId, costId","Cost level details for each proposal, scenario",liveF3
+budgetF3,2M,1.0,No,"financialsLevel1 via longId → ipLongId, planId, costId","Cost level details for each proposal, scenario",budgetF3
+taxonomyMappings,100K,20.0,Yes,"financialsLevel1 via longId → ipLongId, scenario, year","Taxonomy associated with each proposal, scenario and year",taxonomyMappings
+billingKeyHeader,120K,31.0,Yes,"financialsLevel1 via longId → ipLongId, scenario, year","Allocations associated with each proposal, scenario and year",billingKeyHeader
+appMappings,106K,4.0,Yes,"financialsLevel1 via longId → ipLongId, scenario, year",appMappings and their allocations associated with each proposal,appMappings
+outlook,8K,125.0,Yes,financialsLevel1 via longId → ipLongId,"Aggregated collection from outlookF3, taxonomyMappings, billingKeyHeader, appMappings",outlook
+live,8K,125.0,No,financialsLevel1 via longId → ipLongId,"Aggregated collection from liveF3, taxonomyMappings, billingKeyHeader, appMappings",live
+budget,8K,125.0,No,financialsLevel1 via longId → ipLongId,"Aggregated collection from budgetF3, taxonomyMappings, billingKeyHeader, appMappings",budget
