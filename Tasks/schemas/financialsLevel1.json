@@ -1,0 +1,47 @@
+{
+    "_id": "ObjectId",
+    "longId": "String",
+    "shortId": "String",
+    "title": "String",
+    "executionOnly": "String",
+    "openForTimeEntry": "String",
+    "type": "String",
+    "state": "String",
+    "benefitsReportingLevel": "String",
+    "productName": "String",
+    "startDate": "Date",
+    "endDate": "Date",
+    "owner": "String",
+    "agreementApprovers": "String",
+    "collaborators": "String",
+    "cto": "String",
+    "cbt": "String",
+    "sponsor": "String",
+    "primaryFbm": "String",
+    "additionalFbms": "String",
+    "owningOrganization": "String",
+    "inPlan": "String",
+    "openCreationDate": "Date",
+    "overview": "String",
+    "regionalImpact": "String",
+    "isMigrated": "Boolean",
+    "dataForEntitlementsCheck": {
+      "allowedWhiteSids": [
+        "String"
+      ]
+    },
+    "rolesPerPermissions": {
+      "read": [
+        "String"
+      ],
+      "write": [
+        "String"
+      ],
+      "admin": [
+        "String"
+      ]
+    },
+    "financials": {
+      "outlook2025": "Object"
+    }
+  }

@@ -1,0 +1,27 @@
+{
+  "_id": "ObjectId",
+  "iplongid": "String",
+  "planid": "String",
+  "scenario": "String",
+  "ipSwCapEligible": "String",
+  "year": "Number",
+  "months": [
+    {
+      "month": "String",
+      "applications": [
+        {
+          "appid": "String",
+          "apppct": "Number",
+          "cappct": "Number"
+        }
+      ]
+    }
+  ],
+  "years": [
+    {
+      "appid": "String",
+      "apppct": "Number",
+      "cappct": "Number"
+    }
+  ]
+}

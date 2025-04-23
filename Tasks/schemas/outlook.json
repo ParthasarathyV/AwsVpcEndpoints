@@ -1,0 +1,114 @@
+{
+    "_id": "ObjectId",
+    "longId": "String",
+    "planId": "String",
+    "outlook": {
+        "<year> (2021–2030)": {
+            "fyCost": "Number",
+            "monthHC": [
+                "Number (array of size 12)"
+            ],
+            "monthCost": [
+                "Number (array of size 12)"
+            ],
+            "allocations": {
+                "headerId": "String",
+                "bkId": "String",
+                "reason": "String",
+                "type": "String",
+                "sdmL5": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL6": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL7": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL8": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL9": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL10": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL11": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL12": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ],
+                "sdmL13": [
+                    {
+                        "name": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ]
+            },
+            "appMappings": [
+                {
+                    "id": "String",
+                    "capPct": "Number",
+                    "appPct": "Number",
+                    "fyCapCostSplit": "Number",
+                    "fyCostSplit": "Number"
+                }
+            ],
+            "taxonomy": {
+                "firmwide": [
+                    {
+                        "11": "String",
+                        "12": "String",
+                        "13": "String",
+                        "pct": "Number",
+                        "fyCostSplit": "Number"
+                    }
+                ]
+            },
+            "lob": [
+                {
+                    "11": "String",
+                    "12": "String",
+                    "13": "String",
+                    "pct": "Number",
+                    "fyCostSplit": "Number"
+                }
+            ]
+        }
+    }
+}

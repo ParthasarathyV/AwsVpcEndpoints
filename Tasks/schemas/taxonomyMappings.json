@@ -1,0 +1,14 @@
+{
+    "_id": "ObjectId",
+    "ipLongId": "String",
+    "year": "Number",
+    "scenario": "String",
+    "taxonomies": [
+        {
+            "gt_fin_taxonomy_l1": "String",
+            "gt_fin_taxonomy_l2": "String",
+            "gt_fin_taxonomy_name": "String",
+            "gt_fin_taxonomy_percent": "Number"
+        }
+    ]
+}

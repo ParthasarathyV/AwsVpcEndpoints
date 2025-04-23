@@ -1,0 +1,23 @@
+{
+  "_id": "ObjectId",
+  "id": "String",
+  "ipLongId": "String",
+  "planId": "String",
+  "year": "Number",
+  "snode": "Number",
+  "mytechBUName": "String",
+  "ipSendBU05Name": "String",
+  "ipSendBU06Name": "String",
+  "ipSendBU07Name": "String",
+  "ipSendBU08Name": "String",
+  "ipSendBU09Name": "String",
+  "ipSendBU10Name": "String",
+  "ipSendBU11Name": "String",
+  "mycostExpCat1": "String",
+  "mycostCoCountry": "String",
+  "location": "String",
+  "mycostExpName": "String",
+  "fyCost": "Number",
+  "monthCost": ["Number (array of size 12)"],
+  "monthHC": ["Number (array of size 12)"]
+}

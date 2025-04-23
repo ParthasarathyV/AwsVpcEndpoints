@@ -1,0 +1,82 @@
+{
+  "_id": "ObjectId",
+  "ipLongId": "String",
+  "planId": "String",
+  "headerId": "String",
+  "bkId": "String",
+  "reason": "String",
+  "type": "String",
+  "year": "Number",
+  "scenario": "String",
+  "sdmL5": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL6": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL7": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL8": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL9": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL10": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL11": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL12": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "sdmL13": [
+    {
+      "name": "String",
+      "pct": "Number"
+    }
+  ],
+  "allocations": [
+    {
+      "SNODE": "String",
+      "ALLOC_PERCENT": "Number",
+      "levels": {
+        "sdmL5": "String",
+        "sdmL6": "String",
+        "sdmL7": "String",
+        "sdmL8": "String",
+        "sdmL9": "String",
+        "sdmL10": "String",
+        "sdmL11": "String",
+        "sdmL12": "String",
+        "sdmL13": "String"
+      }
+    }
+  ]
+}
