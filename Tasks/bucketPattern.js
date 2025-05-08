@@ -1,4 +1,4 @@
-[
+db.collection.aggregate([
   {
     $match: { _id: ObjectId("681a2c881ae65b56ef498cd0") }
   },
@@ -8,7 +8,9 @@
         $ceil: { $divide: [{ $size: "$costs" }, 500] }
       },
       costs: 1,
-      allFields: "$$ROOT"
+      ipLongId: 1,
+      planId: 1,
+      scenario: 1
     }
   },
   {
@@ -18,25 +20,13 @@
           input: { $range: [0, "$numBuckets"] },
           as: "i",
           in: {
-            $mergeObjects: [
-              {
-                bucketIndex: "$$i",
-                costs: {
-                  $slice: [
-                    "$costs",
-                    { $multiply: ["$$i", 500] },
-                    500
-                  ]
-                }
-              },
-              {
-                $cond: {
-                  if: { $eq: ["$$i", 0] },
-                  then: "$allFields",
-                  else: {}
-                }
-              }
-            ]
+            ipLongId: "$ipLongId",
+            planId: "$planId",
+            scenario: "$scenario",
+            bucketIndex: "$$i",
+            costs: {
+              $slice: ["$costs", { $multiply: ["$$i", 500] }, 500]
+            }
           }
         }
       }
@@ -50,4 +40,4 @@
       newRoot: "$buckets"
     }
   }
-]
+]);
