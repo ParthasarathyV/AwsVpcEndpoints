@@ -1,16 +1,16 @@
 db.collection.aggregate([
-  {
-    $match: { _id: ObjectId("681a2c881ae65b56ef498cd0") }
-  },
+  { $match: { _id: ObjectId("681a2c881ae65b56ef498cd0") } },
+
   {
     $project: {
-      numBuckets: {
-        $ceil: { $divide: [{ $size: "$costs" }, 500] }
-      },
+      numBuckets: { $ceil: { $divide: [{ $size: "$costs" }, 500] } },
       costs: 1,
-      ipLongId: 1,
-      planId: 1,
-      scenario: 1
+      allMeta: {
+        $mergeObjects: [
+          "$$ROOT",
+          { costs: "$$REMOVE" } // exclude the large array
+        ]
+      }
     }
   },
   {
@@ -20,24 +20,39 @@ db.collection.aggregate([
           input: { $range: [0, "$numBuckets"] },
           as: "i",
           in: {
-            ipLongId: "$ipLongId",
-            planId: "$planId",
-            scenario: "$scenario",
-            bucketIndex: "$$i",
-            costs: {
-              $slice: ["$costs", { $multiply: ["$$i", 500] }, 500]
-            }
+            $mergeObjects: [
+              {
+                bucketIndex: "$$i",
+                costs: {
+                  $slice: ["$costs", { $multiply: ["$$i", 500] }, 500]
+                }
+              },
+              {
+                $cond: {
+                  if: { $eq: ["$$i", 0] },
+                  then: "$allMeta",
+                  else: {
+                    ipLongId: "$allMeta.ipLongId",
+                    planId: "$allMeta.planId",
+                    scenario: "$allMeta.scenario"
+                  }
+                }
+              }
+            ]
           }
         }
       }
     }
   },
+  { $unwind: "$buckets" },
+  { $replaceRoot: { newRoot: "$buckets" } },
+
+  // Optional: persist result
   {
-    $unwind: "$buckets"
-  },
-  {
-    $replaceRoot: {
-      newRoot: "$buckets"
+    $merge: {
+      into: "bucketedCosts",
+      whenMatched: "replace",
+      whenNotMatched: "insert"
     }
   }
 ]);
