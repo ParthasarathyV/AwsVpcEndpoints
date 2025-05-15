@@ -27,3 +27,38 @@ db.collection.aggregate([
     }
   }
 ])
+
+db.collection.aggregate([
+  {
+    $set: {
+      costs: {
+        $map: {
+          input: "$costs",
+          as: "c",
+          in: {
+            $let: {
+              vars: {
+                filtered: {
+                  $filter: {
+                    input: { $objectToArray: "$$c" },
+                    as: "field",
+                    cond: {
+                      $not: {
+                        $regexMatch: {
+                          input: "$$field.k",
+                          regex: "^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)(Qty|Total|RegHrs|RegTotal|OtHrs|OtTotal)$",
+                          options: "i"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              in: { $arrayToObject: "$$filtered" }
+            }
+          }
+        }
+      }
+    }
+  }
+])
