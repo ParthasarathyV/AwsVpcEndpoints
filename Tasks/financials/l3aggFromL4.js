@@ -1,10 +1,7 @@
 db.l4CostDetails.aggregate([
-  // STEP 1: Extract all years and keep costs
+  // Step 1: Extract years
   {
-    $project: {
-      ipLongId: 1,
-      planId: 1,
-      costs: 1,
+    $addFields: {
       years: {
         $setUnion: [
           {
@@ -19,9 +16,9 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // STEP 2: Create 1 document per year
+  // Step 2: For each year, generate subdocument
   {
-    $project: {
+    $addFields: {
       transformed: {
         $map: {
           input: "$years",
@@ -29,28 +26,31 @@ db.l4CostDetails.aggregate([
           in: {
             ipLongId: "$ipLongId",
             planId: "$planId",
+            scenario: "$scenario",
             year: "$$yr",
-            costs: {
-              $map: {
-                input: {
-                  $filter: {
-                    input: "$costs",
-                    as: "c",
-                    cond: { $eq: ["$$c.year", "$$yr"] }
-                  }
-                },
+            costsRaw: {
+              $filter: {
+                input: "$costs",
                 as: "c",
-                in: {
-                  snode: "$$c.snode",
-                  type: "$$c.type",
-                  subType: "$$c.subType",
-                  title: "$$c.title",
-                  source: "$$c.source",
-                  fycost: "$$c.fycost",
-                  fyHC: "$$c.fyHC",
-                  mthCost: "$$c.mthCost"
-                }
+                cond: { $eq: ["$$c.year", "$$yr"] }
               }
+            },
+            snodes: {
+              $setUnion: [
+                {
+                  $map: {
+                    input: {
+                      $filter: {
+                        input: "$costs",
+                        as: "c",
+                        cond: { $eq: ["$$c.year", "$$yr"] }
+                      }
+                    },
+                    as: "c",
+                    in: "$$c.snode"
+                  }
+                }
+              ]
             }
           }
         }
@@ -58,70 +58,69 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // STEP 3: Flatten the array of year-wise documents
+  // Step 3: Flatten year-based docs
   { $unwind: "$transformed" },
   { $replaceRoot: { newRoot: "$transformed" } },
 
-  // STEP 4: Build snode list from costs
+  // Step 4: Lookup refBU using pipeline
   {
-    $addFields: {
-      snodes: {
-        $setUnion: [
-          {
-            $map: {
-              input: "$costs",
-              as: "c",
-              in: "$$c.snode"
-            }
+    $lookup: {
+      from: "refBU",
+      let: { snodeList: "$snodes" },
+      pipeline: [
+        {
+          $match: {
+            $expr: { $in: ["$snode", "$$snodeList"] }
           }
-        ]
-      }
+        },
+        {
+          $project: {
+            _id: 0,
+            snode: 1,
+            bu: 1
+          }
+        }
+      ],
+      as: "refBUData"
     }
   },
 
-  // STEP 5: Pipeline-based $lookup with projection
-{
-  $lookup: {
-    from: "TestRefBU",
-    let: { snodeList: "$snodes" },
-    pipeline: [
-      {
-        $match: {
-          $expr: { $in: ["$SNODE", "$$snodeList"] }
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          SNODE: 1,
-          SDM: 1,
-          LOB: 1,
-          Manager: 1,
-          // Add or remove fields as needed
-        }
-      }
-    ],
-    as: "buObjects"
-  }
-}
-
-  // STEP 6: Enrich each cost with corresponding bu object
+  // Step 5: Enrich costs and calculate metrics
   {
     $addFields: {
       costs: {
         $map: {
-          input: "$costs",
+          input: "$costsRaw",
           as: "c",
           in: {
             $mergeObjects: [
-              "$$c",
+              {
+                type: "$$c.type",
+                subType: "$$c.subType",
+                locVen: "$$c.locVen",
+                title: "$$c.title",
+                snode: "$$c.snode",
+                source: "$$c.source",
+                fycost: "$$c.fycost",
+                fyHC: "$$c.fyHC",
+                mthCost: "$$c.mthCost",
+                mthHC: "$$c.mthHC"
+              },
               {
                 bu: {
-                  $first: {
-                    $filter: {
-                      input: "$buObjects",
-                      as: "b",
-                      cond: { $eq: ["$$b.SNODE", "$$c.snode"] }
+                  $getField: {
+                    field: "$$c.snode",
+                    input: {
+                      $arrayToObject: {
+                        $map: {
+                          input: "$refBUData",
+                          as: "b",
+                          in: {
+                            k: "$$b.snode",
+                            v: "$$b.bu"
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -133,13 +132,78 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Optional: Remove snodes and buObjects arrays
+  // Step 6: Compute summary values
+  {
+    $addFields: {
+      totalCost: {
+        $sum: {
+          $map: {
+            input: "$costs",
+            as: "c",
+            in: "$$c.fycost"
+          }
+        }
+      },
+      mthCost: {
+        $reduce: {
+          input: {
+            $map: {
+              input: "$costs",
+              as: "c",
+              in: "$$c.mthCost"
+            }
+          },
+          initialValue: Array(12).fill(0), // [0,0,...0]
+          in: {
+            $map: {
+              input: { $range: [0, 12] },
+              as: "idx",
+              in: {
+                $add: [
+                  { $arrayElemAt: ["$$value", "$$idx"] },
+                  { $arrayElemAt: ["$$this", "$$idx"] }
+                ]
+              }
+            }
+          }
+        }
+      },
+      mthHC: {
+        $reduce: {
+          input: {
+            $map: {
+              input: "$costs",
+              as: "c",
+              in: "$$c.mthHC"
+            }
+          },
+          initialValue: Array(12).fill(0),
+          in: {
+            $map: {
+              input: { $range: [0, 12] },
+              as: "idx",
+              in: {
+                $add: [
+                  { $arrayElemAt: ["$$value", "$$idx"] },
+                  { $arrayElemAt: ["$$this", "$$idx"] }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  // Step 7: Cleanup
   {
     $project: {
+      costsRaw: 0,
       snodes: 0,
-      buObjects: 0
+      refBUData: 0
     }
   }
 
-  // You can add $merge to write to new collection if needed
+  // Optional final stage:
+  // { $merge: { into: "l4CostDetailsFlattened", whenMatched: "replace" } }
 ])
