@@ -1,5 +1,34 @@
 db.l4CostDetails.aggregate([
-  // Step 1: Extract years
+
+  // Stage 1: Project only needed fields
+  {
+    $project: {
+      ipLongId: 1,
+      planId: 1,
+      scenario: 1,
+      costs: {
+        $map: {
+          input: "$costs",
+          as: "c",
+          in: {
+            year: "$$c.year",
+            snode: "$$c.snode",
+            type: "$$c.type",
+            subType: "$$c.subType",
+            title: "$$c.title",
+            locVen: "$$c.locVen",
+            source: "$$c.source",
+            fycost: "$$c.fycost",
+            fyHC: "$$c.fyHC",
+            mthCost: "$$c.mthCost",
+            mthHC: "$$c.mthHC"
+          }
+        }
+      }
+    }
+  },
+
+  // Stage 2: Extract all unique years
   {
     $addFields: {
       years: {
@@ -16,7 +45,7 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Step 2: For each year, generate subdocument
+  // Stage 3: Transform into one doc per year
   {
     $addFields: {
       transformed: {
@@ -58,11 +87,11 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Step 3: Flatten year-based docs
+  // Stage 4: Flatten transformed array into individual docs
   { $unwind: "$transformed" },
   { $replaceRoot: { newRoot: "$transformed" } },
 
-  // Step 4: Lookup refBU using pipeline
+  // Stage 5: Lookup refBU using snodes[]
   {
     $lookup: {
       from: "refBU",
@@ -85,7 +114,7 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Step 5: Enrich costs and calculate metrics
+  // Stage 6: Merge refBU into each cost using $getField
   {
     $addFields: {
       costs: {
@@ -94,18 +123,7 @@ db.l4CostDetails.aggregate([
           as: "c",
           in: {
             $mergeObjects: [
-              {
-                type: "$$c.type",
-                subType: "$$c.subType",
-                locVen: "$$c.locVen",
-                title: "$$c.title",
-                snode: "$$c.snode",
-                source: "$$c.source",
-                fycost: "$$c.fycost",
-                fyHC: "$$c.fyHC",
-                mthCost: "$$c.mthCost",
-                mthHC: "$$c.mthHC"
-              },
+              "$$c",
               {
                 bu: {
                   $getField: {
@@ -132,7 +150,7 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Step 6: Compute summary values
+  // Stage 7: Compute totalCost, mthCost[], mthHC[]
   {
     $addFields: {
       totalCost: {
@@ -153,15 +171,15 @@ db.l4CostDetails.aggregate([
               in: "$$c.mthCost"
             }
           },
-          initialValue: Array(12).fill(0), // [0,0,...0]
+          initialValue: Array(12).fill(0),
           in: {
             $map: {
               input: { $range: [0, 12] },
-              as: "idx",
+              as: "i",
               in: {
                 $add: [
-                  { $arrayElemAt: ["$$value", "$$idx"] },
-                  { $arrayElemAt: ["$$this", "$$idx"] }
+                  { $arrayElemAt: ["$$value", "$$i"] },
+                  { $arrayElemAt: ["$$this", "$$i"] }
                 ]
               }
             }
@@ -181,11 +199,11 @@ db.l4CostDetails.aggregate([
           in: {
             $map: {
               input: { $range: [0, 12] },
-              as: "idx",
+              as: "i",
               in: {
                 $add: [
-                  { $arrayElemAt: ["$$value", "$$idx"] },
-                  { $arrayElemAt: ["$$this", "$$idx"] }
+                  { $arrayElemAt: ["$$value", "$$i"] },
+                  { $arrayElemAt: ["$$this", "$$i"] }
                 ]
               }
             }
@@ -195,15 +213,16 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Step 7: Cleanup
+  // Stage 8: Final cleanup
   {
     $project: {
       costsRaw: 0,
       snodes: 0,
-      refBUData: 0
+      refBUData: 0,
+      years: 0
     }
   }
 
-  // Optional final stage:
+  // Optional Stage 9: Save result to new collection
   // { $merge: { into: "l4CostDetailsFlattened", whenMatched: "replace" } }
 ])
