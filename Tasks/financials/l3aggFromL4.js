@@ -79,15 +79,31 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // STEP 5: Lookup from refBU using snodes[]
-  {
-    $lookup: {
-      from: "refBU",
-      localField: "snodes",
-      foreignField: "SNODE",
-      as: "buObjects"
-    }
-  },
+  // STEP 5: Pipeline-based $lookup with projection
+{
+  $lookup: {
+    from: "TestRefBU",
+    let: { snodeList: "$snodes" },
+    pipeline: [
+      {
+        $match: {
+          $expr: { $in: ["$SNODE", "$$snodeList"] }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          SNODE: 1,
+          SDM: 1,
+          LOB: 1,
+          Manager: 1,
+          // Add or remove fields as needed
+        }
+      }
+    ],
+    as: "buObjects"
+  }
+}
 
   // STEP 6: Enrich each cost with corresponding bu object
   {
