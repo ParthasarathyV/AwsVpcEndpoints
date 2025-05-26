@@ -1,87 +1,77 @@
 db.l4CostDetails.aggregate([
 
-  // Stage 1: Trim costs array down to required fields
-  {
-    $project: {
-      ipLongId: 1,
-      planId: 1,
-      scenario: 1,
-      costs: {
-        $map: {
-          input: "$costs",
-          as: "c",
-          in: {
-            year: "$$c.year",
-            snode: "$$c.snode",
-            type: "$$c.type",
-            subType: "$$c.subType",
-            title: "$$c.title",
-            locVen: "$$c.locVen",
-            source: "$$c.source",
-            fycost: "$$c.fycost",
-            fyHC: "$$c.fyHC",
-            mthCost: "$$c.mthCost",
-            mthHC: "$$c.mthHC"
-          }
-        }
-      }
-    }
-  },
-
-  // Stage 2: Unwind costs array
+  // Stage 1: Unwind costs early to access costs.snode (indexed)
   { $unwind: "$costs" },
 
-  // Stage 3: Clean + round each cost item
+  // Stage 2: Match to trigger index usage
   {
-    $addFields: {
-      cost: {
-        year: "$costs.year",
-        snode: "$costs.snode",
-        type: "$costs.type",
-        subType: "$costs.subType",
-        title: "$costs.title",
-        locVen: "$costs.locVen",
-        source: "$costs.source",
-        fycost: { $round: [{ $ifNull: ["$costs.fycost", 0] }, 6] },
-        fyHC: { $round: [{ $ifNull: ["$costs.fyHC", 0] }, 6] },
-        mthCost: {
-          $map: {
-            input: "$costs.mthCost",
-            as: "v",
-            in: { $round: [{ $ifNull: ["$$v", 0] }, 6] }
-          }
-        },
-        mthHC: {
-          $map: {
-            input: "$costs.mthHC",
-            as: "v",
-            in: { $round: [{ $ifNull: ["$$v", 0] }, 6] }
-          }
-        }
-      }
+    $match: {
+      "costs.snode": { $exists: true },
+      "costs.year": { $exists: true } // Optional: Filter by year if needed
     }
   },
 
-  // Stage 4: Lookup BU from TestRefBU
+  // Stage 3: Lookup from TestRefBU using costs.snode (indexed)
   {
     $lookup: {
       from: "TestRefBU",
-      localField: "cost.snode",
+      localField: "costs.snode",
       foreignField: "snode",
       as: "buMatch"
     }
   },
 
-  // Stage 5: Attach bu to cost
+  // Stage 4: Merge matched BU into costs
   {
     $addFields: {
-      "cost.bu": {
+      "costs.bu": {
         $ifNull: [{ $arrayElemAt: ["$buMatch.bu", 0] }, null]
       }
     }
   },
 
-  // Stage 6: Group by ipLongId, planId, scenario, year
+  // Stage 5: Flatten cost structure after enrichment
+  {
+    $replaceRoot: {
+      newRoot: {
+        ipLongId: "$ipLongId",
+        planId: "$planId",
+        scenario: "$scenario",
+        cost: "$costs"
+      }
+    }
+  },
+
+  // Stage 6: Round and null-safe cleanups
+  {
+    $addFields: {
+      cost: {
+        $mergeObjects: [
+          "$cost",
+          {
+            fycost: { $round: [{ $ifNull: ["$cost.fycost", 0] }, 6] },
+            fyHC: { $round: [{ $ifNull: ["$cost.fyHC", 0] }, 6] },
+            mthCost: {
+              $map: {
+                input: "$cost.mthCost",
+                as: "v",
+                in: { $round: [{ $ifNull: ["$$v", 0] }, 6] }
+              }
+            },
+            mthHC: {
+              $map: {
+                input: "$cost.mthHC",
+                as: "v",
+                in: { $round: [{ $ifNull: ["$$v", 0] }, 6] }
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+
+  // Stage 7: Group back to reconstruct per year
   {
     $group: {
       _id: {
@@ -97,7 +87,7 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Stage 7: Sum monthly arrays and round to 6 decimals
+  // Stage 8: Reduce monthly arrays and round
   {
     $addFields: {
       mthCost: {
@@ -150,7 +140,7 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Stage 8: Final reshape
+  // Stage 9: Final shape
   {
     $project: {
       _id: 0,
@@ -165,6 +155,7 @@ db.l4CostDetails.aggregate([
     }
   }
 
-  // Optional Stage 9: Save result
+  // Optional:
   // { $merge: { into: "l4CostDetailsFlattened", whenMatched: "replace" } }
+
 ])
