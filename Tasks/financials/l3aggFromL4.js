@@ -1,6 +1,6 @@
 db.l4CostDetails.aggregate([
 
-  // Stage 1: Project only required fields
+  // Stage 1: Project only required fields and round numerics early
   {
     $project: {
       ipLongId: 1,
@@ -18,10 +18,22 @@ db.l4CostDetails.aggregate([
             title: "$$c.title",
             locVen: "$$c.locVen",
             source: "$$c.source",
-            fycost: "$$c.fycost",
-            fyHC: "$$c.fyHC",
-            mthCost: "$$c.mthCost",
-            mthHC: "$$c.mthHC"
+            fycost: { $round: ["$$c.fycost", 6] },
+            fyHC: { $round: ["$$c.fyHC", 6] },
+            mthCost: {
+              $map: {
+                input: "$$c.mthCost",
+                as: "m",
+                in: { $round: [{ $ifNull: ["$$m", 0] }, 6] }
+              }
+            },
+            mthHC: {
+              $map: {
+                input: "$$c.mthHC",
+                as: "m",
+                in: { $round: [{ $ifNull: ["$$m", 0] }, 6] }
+              }
+            }
           }
         }
       }
@@ -87,14 +99,14 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Stage 4: Flatten the per-year docs
+  // Stage 4: Flatten per-year documents
   { $unwind: "$transformed" },
   { $replaceRoot: { newRoot: "$transformed" } },
 
-  // Stage 5: Lookup matching refBU data from TestRefBU
+  // Stage 5: Lookup TestRefBU using snodes
   {
     $lookup: {
-      from: "TestRefBU",  // ✅ Using updated collection name
+      from: "TestRefBU",
       let: { snodeList: "$snodes" },
       pipeline: [
         {
@@ -114,7 +126,7 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Stage 6: Enrich each cost with corresponding bu using $filter
+  // Stage 6: Enrich each cost entry with matched BU
   {
     $addFields: {
       costs: {
@@ -152,17 +164,22 @@ db.l4CostDetails.aggregate([
     }
   },
 
-  // Stage 7: Compute totals
+  // Stage 7: Compute totalCost, mthCost[], mthHC[] with rounding and null safety
   {
     $addFields: {
       totalCost: {
-        $sum: {
-          $map: {
-            input: "$costs",
-            as: "c",
-            in: "$$c.fycost"
-          }
-        }
+        $round: [
+          {
+            $sum: {
+              $map: {
+                input: "$costs",
+                as: "c",
+                in: { $ifNull: ["$$c.fycost", 0] }
+              }
+            },
+          },
+          6
+        ]
       },
       mthCost: {
         $reduce: {
@@ -179,9 +196,14 @@ db.l4CostDetails.aggregate([
               input: { $range: [0, 12] },
               as: "i",
               in: {
-                $add: [
-                  { $arrayElemAt: ["$$value", "$$i"] },
-                  { $arrayElemAt: ["$$this", "$$i"] }
+                $round: [
+                  {
+                    $add: [
+                      { $ifNull: [{ $arrayElemAt: ["$$value", "$$i"] }, 0] },
+                      { $ifNull: [{ $arrayElemAt: ["$$this", "$$i"] }, 0] }
+                    ]
+                  },
+                  6
                 ]
               }
             }
@@ -203,9 +225,14 @@ db.l4CostDetails.aggregate([
               input: { $range: [0, 12] },
               as: "i",
               in: {
-                $add: [
-                  { $arrayElemAt: ["$$value", "$$i"] },
-                  { $arrayElemAt: ["$$this", "$$i"] }
+                $round: [
+                  {
+                    $add: [
+                      { $ifNull: [{ $arrayElemAt: ["$$value", "$$i"] }, 0] },
+                      { $ifNull: [{ $arrayElemAt: ["$$this", "$$i"] }, 0] }
+                    ]
+                  },
+                  6
                 ]
               }
             }
@@ -225,6 +252,6 @@ db.l4CostDetails.aggregate([
     }
   }
 
-  // Optional Final Stage:
+  // Optional: Save to collection
   // { $merge: { into: "l4CostDetailsFlattened", whenMatched: "replace" } }
 ])
