@@ -3,28 +3,30 @@
     taxonomyAllocation: {
       $let: {
         vars: {
-          alloc: "$taxonomyAllocation",
-          yearVal: "$year",
+          match: {
+            $arrayElemAt: [
+              {
+                $filter: {
+                  input: "$taxonomyAllocations",
+                  as: "t",
+                  cond: { $eq: ["$$t.year", "$year"] }
+                }
+              },
+              0
+            ]
+          },
           cost: "$fyCost"
         },
         in: {
           GT: {
             pctAllocations: {
               $map: {
-                input: {
-                  $filter: {
-                    input: "$$alloc.GT.pctAllocations",
-                    as: "a",
-                    cond: { $eq: ["$$a.year", "$$yearVal"] }
-                  }
-                },
-                as: "a",
+                input: "$$match.GT.pctAllocations",
+                as: "p",
                 in: {
                   $mergeObjects: [
-                    "$$a",
-                    {
-                      fySplitCost: { $multiply: ["$$a.pct", "$$cost"] }
-                    }
+                    "$$p",
+                    { fySplitCost: { $multiply: ["$$p.pct", "$$cost"] } }
                   ]
                 }
               }
@@ -33,20 +35,12 @@
           LOB: {
             pctAllocations: {
               $map: {
-                input: {
-                  $filter: {
-                    input: "$$alloc.LOB.pctAllocations",
-                    as: "a",
-                    cond: { $eq: ["$$a.year", "$$yearVal"] }
-                  }
-                },
-                as: "a",
+                input: "$$match.LOB.pctAllocations",
+                as: "p",
                 in: {
                   $mergeObjects: [
-                    "$$a",
-                    {
-                      fySplitCost: { $multiply: ["$$a.pct", "$$cost"] }
-                    }
+                    "$$p",
+                    { fySplitCost: { $multiply: ["$$p.pct", "$$cost"] } }
                   ]
                 }
               }
@@ -55,20 +49,12 @@
           RTB: {
             pctAllocations: {
               $map: {
-                input: {
-                  $filter: {
-                    input: "$$alloc.RTB.pctAllocations",
-                    as: "a",
-                    cond: { $eq: ["$$a.year", "$$yearVal"] }
-                  }
-                },
-                as: "a",
+                input: "$$match.RTB.pctAllocations",
+                as: "p",
                 in: {
                   $mergeObjects: [
-                    "$$a",
-                    {
-                      fySplitCost: { $multiply: ["$$a.pct", "$$cost"] }
-                    }
+                    "$$p",
+                    { fySplitCost: { $multiply: ["$$p.pct", "$$cost"] } }
                   ]
                 }
               }
