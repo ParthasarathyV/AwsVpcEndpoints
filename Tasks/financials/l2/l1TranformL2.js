@@ -1,22 +1,23 @@
 db.collection.aggregate([
   {
-    $match: {
-      $or: [
-        { "outlook.years": { $exists: true, $ne: [] } },
-        { "live.years": { $exists: true, $ne: [] } },
-        { "budget.years": { $exists: true, $ne: [] } }
-      ]
-    }
-  },
-  {
     $facet: {
-      outlook: [
-        { $match: { "outlook.years": { $exists: true, $ne: [] } } },
-        { $unwind: "$outlook.years" },
+      proposalId: [
         {
           $project: {
             _id: 0,
-            proposalId: 1,
+            proposalId: 1
+          }
+        }
+      ],
+      outlook: [
+        {
+          $match: {
+            "outlook.years": { $exists: true, $ne: [] }
+          }
+        },
+        { $unwind: "$outlook.years" },
+        {
+          $project: {
             planId: "$outlook.planId",
             verId: "$outlook.verId",
             year: "$outlook.years.year",
@@ -30,12 +31,14 @@ db.collection.aggregate([
         }
       ],
       live: [
-        { $match: { "live.years": { $exists: true, $ne: [] } } },
+        {
+          $match: {
+            "live.years": { $exists: true, $ne: [] }
+          }
+        },
         { $unwind: "$live.years" },
         {
           $project: {
-            _id: 0,
-            proposalId: 1,
             planId: "$live.planId",
             verId: "$live.verId",
             year: "$live.years.year",
@@ -49,12 +52,14 @@ db.collection.aggregate([
         }
       ],
       budget: [
-        { $match: { "budget.years": { $exists: true, $ne: [] } } },
+        {
+          $match: {
+            "budget.years": { $exists: true, $ne: [] }
+          }
+        },
         { $unwind: "$budget.years" },
         {
           $project: {
-            _id: 0,
-            proposalId: 1,
             planId: "$budget.planId",
             verId: "$budget.verId",
             year: "$budget.years.year",
@@ -67,6 +72,14 @@ db.collection.aggregate([
           }
         }
       ]
+    }
+  },
+  {
+    $project: {
+      proposalId: { $arrayElemAt: ["$proposalId.proposalId", 0] },
+      outlook: 1,
+      live: 1,
+      budget: 1
     }
   }
 ])
