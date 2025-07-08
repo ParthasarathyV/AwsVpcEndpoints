@@ -1,0 +1,12 @@
+Addendum – internal GA status
+
+All mechanisms listed below are fully supported by MongoDB today, but we do not yet have clarity on which of them are formally GA-approved inside JPMC.
+Until the Technology Standards Council publishes the 2025–H2 MongoDB migration standard, treat every line item as Mongo-supported, JPMC GA TBD and engage your domain architect for a final go/no-go.
+
+Use-case	Atlas-native option	Pros	Cons / limits	JPMC GA?
+Near-zero-downtime, TB-scale	Cluster-to-Cluster Sync (mongosync)	Continuous oplog tail, resumable, index-preserving	M10+, ≥ 6.0, no users/roles copied	TBD
+Point-in-time full-cluster clone	Snapshot restore to new cluster	Fast, stays in Atlas security boundary	Read-only at snapshot, rebuilds Search indexes	TBD
+Copy configuration only	Cluster Clone (no data)	Deploys in minutes	Load data separately	TBD
+Small one-off copy with downtime	mongodump → mongorestore	Works on any tier/version	Slow, manual window	TBD
+
+Action: When you raise the migration RFC, include the chosen mechanism plus a risk note: “GA status under review; requesting on-exception approval if not yet ratified.”
