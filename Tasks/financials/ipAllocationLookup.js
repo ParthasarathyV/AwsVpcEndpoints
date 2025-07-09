@@ -1,7 +1,8 @@
 db.lvl1FinancialsSummary.aggregate([
-  /* ──────────────────────────────────────────────────────────────
-     1) bring in the matching ipTaxonomy document by proposalId
-  ────────────────────────────────────────────────────────────── */
+  /* 0️⃣  ── restrict to the outlook scenario only (optional) ── */
+  { $match: { scenario: "outlook" } },
+
+  /* 1️⃣  ── bring in the ipTaxonomy doc that shares proposalId ── */
   {
     $lookup: {
       from: "ipTaxonomy",
@@ -10,13 +11,22 @@ db.lvl1FinancialsSummary.aggregate([
       as: "taxDoc"
     }
   },
-  /* there can only be one, so pull it out of the array */
-  { $set: { taxDoc: { $first: "$taxDoc" } } },
+  /* keep just the first match and only the fields you want */
+  {
+    $set: {
+      taxDoc: {
+        $let: {
+          vars: { doc: { $first: "$taxDoc" } },
+          in: {
+            verId:      "$$doc.verId",
+            taxonomies: "$$doc.taxonomies"
+          }
+        }
+      }
+    }
+  },
 
-  /* ──────────────────────────────────────────────────────────────
-     2) turn outlook.years into an OBJECT keyed by year so that
-        we can grab a fiscal-year record in O(1) time later on
-  ────────────────────────────────────────────────────────────── */
+  /* 2️⃣  ── turn outlook.years into a fast lookup table ── */
   {
     $set: {
       _outlookByYear: {
@@ -31,24 +41,20 @@ db.lvl1FinancialsSummary.aggregate([
     }
   },
 
-  /* ──────────────────────────────────────────────────────────────
-     3) walk the taxonomy tree and—still in array form—compute
-        fyCostSplit = fyCost × pct for the matching year
-  ────────────────────────────────────────────────────────────── */
+  /* 3️⃣  ── walk the taxonomy tree and calculate fyCostSplit ── */
   {
     $set: {
       "taxDoc.taxonomies": {
         $map: {
-          input: "$taxDoc.taxonomies",    /* all top-level taxonomies */
+          input: "$taxDoc.taxonomies",    /* every top-level taxonomy */
           as:   "tx",
           in: {
             type: "$$tx.type",
             years: {
               $map: {
-                input: "$$tx.years",       /* every year held by this taxonomy */
+                input: "$$tx.years",       /* each year inside it     */
                 as:   "txYr",
                 in: {
-                  /* grab the matching outlook year in one step */
                   $let: {
                     vars: {
                       outlookYr: {
@@ -67,13 +73,34 @@ db.lvl1FinancialsSummary.aggregate([
                           in: {
                             _id:  "$$alloc._id",
                             name: "$$alloc.name",
-                            pct:  "$$alloc.pct",
+
+                            /* pct                              */
+                            pct: {
+                              $round: [
+                                { $cond: [
+                                    /* if stored as 25 ( >1 ) divide to get 0.25            */
+                                    { $gt: ["$$alloc.pct", 1] },
+                                    { $divide: ["$$alloc.pct", 100] },
+                                    "$$alloc.pct"
+                                ]},
+                                6
+                              ]
+                            },
+
+                            /* fyCostSplit = pct × fyCost, rounded to 6 dp               */
                             fyCostSplit: {
-                              /* multiply percentage by the FY cost
-                                 (divide by 100 ⇢ if pct is stored as 25 not 0.25) */
-                              $multiply: [
-                                "$$alloc.pct",
-                                { $ifNull: ["$$outlookYr.fyCost", 0] }
+                              $round: [
+                                {
+                                  $multiply: [
+                                    { $cond: [
+                                        { $gt: ["$$alloc.pct", 1] },
+                                        { $divide: ["$$alloc.pct", 100] },
+                                        "$$alloc.pct"
+                                    ]},
+                                    { $ifNull: ["$$outlookYr.fyCost", 0] }
+                                  ]
+                                },
+                                6
                               ]
                             }
                           }
@@ -90,8 +117,7 @@ db.lvl1FinancialsSummary.aggregate([
     }
   },
 
-  /* ──────────────────────────────────────────────────────────────
-     4) tidy up – drop helper field if you don’t want it
-  ────────────────────────────────────────────────────────────── */
-  { $unset: ["_outlookByYear"] }
+  /* 4️⃣  ── move taxDoc under outlook & drop helpers ── */
+  { $set: { "outlook.taxDoc": "$taxDoc" } },
+  { $unset: ["taxDoc", "_outlookByYear"] }
 ])
