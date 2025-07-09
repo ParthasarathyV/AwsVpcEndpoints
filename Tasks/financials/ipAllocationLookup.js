@@ -1,107 +1,108 @@
 db.lvl1FinancialsSummary.aggregate([
-  /* 0️⃣  ── restrict to the outlook scenario only (optional) ── */
-  { $match: { scenario: "outlook" } },
-
-  /* 1️⃣  ── bring in the ipTaxonomy doc that shares proposalId ── */
+  /* 1️⃣  Bring in the matching ipTaxonomy – keep only verId + taxonomies */
   {
     $lookup: {
       from: "ipTaxonomy",
-      localField: "proposalId",
-      foreignField: "proposalId",
+      localField:  "proposalId",
+      foreignField:"proposalId",
       as: "taxDoc"
     }
   },
-  /* keep just the first match and only the fields you want */
   {
     $set: {
       taxDoc: {
-        $let: {
-          vars: { doc: { $first: "$taxDoc" } },
-          in: {
-            verId:      "$$doc.verId",
-            taxonomies: "$$doc.taxonomies"
-          }
-        }
+        $let: { vars: { d: { $first: "$taxDoc" } },
+          in: { verId: "$$d.verId", taxonomies: "$$d.taxonomies" } }
       }
     }
   },
 
-  /* 2️⃣  ── turn outlook.years into a fast lookup table ── */
+  /* 2️⃣  Enrich the outlook block --------------------------------------- */
   {
     $set: {
-      _outlookByYear: {
-        $arrayToObject: {
-          $map: {
-            input: "$outlook.years",
-            as:   "y",
-            in:   [ { $toString: "$$y.year" }, "$$y" ]
-          }
-        }
-      }
-    }
-  },
+      "outlook.taxDoc": {
+        /* only do the work if an outlook.years array exists */
+        $cond: [
+          { $gt: [ { $size: { $ifNull: ["$outlook.years", []] } }, 0 ] },
 
-  /* 3️⃣  ── walk the taxonomy tree and calculate fyCostSplit ── */
-  {
-    $set: {
-      "taxDoc.taxonomies": {
-        $map: {
-          input: "$taxDoc.taxonomies",    /* every top-level taxonomy */
-          as:   "tx",
-          in: {
-            type: "$$tx.type",
-            years: {
-              $map: {
-                input: "$$tx.years",       /* each year inside it     */
-                as:   "txYr",
-                in: {
-                  $let: {
-                    vars: {
-                      outlookYr: {
-                        $getField: {
-                          field: { $toString: "$$txYr.year" },
-                          input: "$_outlookByYear"
-                        }
-                      }
-                    },
+          /* ── build a tiny year-lookup object and use it inline ── */
+          {
+            $let: {
+              vars: {
+                byYear: {                         /* { "2025": <rec>, … } */
+                  $arrayToObject: {
+                    $map: {
+                      input: "$outlook.years",
+                      as:   "y",
+                      in: [ { $toString: "$$y.year" }, "$$y" ]
+                    }
+                  }
+                }
+              },
+              in: {
+                verId: "$taxDoc.verId",
+                taxonomies: {
+                  $map: {
+                    input: "$taxDoc.taxonomies",
+                    as:   "tx",
                     in: {
-                      year: "$$txYr.year",
-                      pctAllocations: {
+                      type: "$$tx.type",
+                      years: {
                         $map: {
-                          input: "$$txYr.pctAllocations",
-                          as:   "alloc",
+                          input: "$$tx.years",
+                          as:   "txYr",
                           in: {
-                            _id:  "$$alloc._id",
-                            name: "$$alloc.name",
+                            $let: {
+                              vars: {
+                                yrRec: {
+                                  $getField: {
+                                    field: { $toString: "$$txYr.year" },
+                                    input: "$$byYear"
+                                  }
+                                }
+                              },
+                              in: {
+                                year: "$$txYr.year",
+                                pctAllocations: {
+                                  $map: {
+                                    input: "$$txYr.pctAllocations",
+                                    as:   "alloc",
+                                    in: {
+                                      _id : "$$alloc._id",
+                                      name: "$$alloc.name",
 
-                            /* pct                              */
-                            pct: {
-                              $round: [
-                                { $cond: [
-                                    /* if stored as 25 ( >1 ) divide to get 0.25            */
-                                    { $gt: ["$$alloc.pct", 1] },
-                                    { $divide: ["$$alloc.pct", 100] },
-                                    "$$alloc.pct"
-                                ]},
-                                6
-                              ]
-                            },
+                                      /* pct rounded to 6 dp */
+                                      pct: {
+                                        $round: [
+                                          { $cond: [
+                                              { $gt: ["$$alloc.pct", 1] },
+                                              { $divide: ["$$alloc.pct", 100] },
+                                              "$$alloc.pct"
+                                          ]},
+                                          6
+                                        ]
+                                      },
 
-                            /* fyCostSplit = pct × fyCost, rounded to 6 dp               */
-                            fyCostSplit: {
-                              $round: [
-                                {
-                                  $multiply: [
-                                    { $cond: [
-                                        { $gt: ["$$alloc.pct", 1] },
-                                        { $divide: ["$$alloc.pct", 100] },
-                                        "$$alloc.pct"
-                                    ]},
-                                    { $ifNull: ["$$outlookYr.fyCost", 0] }
-                                  ]
-                                },
-                                6
-                              ]
+                                      /* fyCostSplit = pct × fyCost (rounded) */
+                                      fyCostSplit: {
+                                        $round: [
+                                          {
+                                            $multiply: [
+                                              { $cond: [
+                                                  { $gt: ["$$alloc.pct", 1] },
+                                                  { $divide: ["$$alloc.pct", 100] },
+                                                  "$$alloc.pct"
+                                              ]},
+                                              { $ifNull: ["$$yrRec.fyCost", 0] }
+                                            ]
+                                          },
+                                          6
+                                        ]
+                                      }
+                                    }
+                                  }
+                                }
+                              }
                             }
                           }
                         }
@@ -111,13 +112,15 @@ db.lvl1FinancialsSummary.aggregate([
                 }
               }
             }
-          }
-        }
+          },
+
+          /* outlook block missing → leave as-is */
+          "$$REMOVE"
+        ]
       }
     }
   },
 
-  /* 4️⃣  ── move taxDoc under outlook & drop helpers ── */
-  { $set: { "outlook.taxDoc": "$taxDoc" } },
-  { $unset: ["taxDoc", "_outlookByYear"] }
+  /* 3️⃣  Drop the temporary top-level taxDoc --------------------------- */
+  { $unset: "taxDoc" }
 ])
