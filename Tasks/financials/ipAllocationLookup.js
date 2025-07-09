@@ -1,5 +1,5 @@
 db.lvl1FinancialsSummary.aggregate([
-  /* 1️⃣  Bring in the matching ipTaxonomy – keep only verId + taxonomies */
+  /* 1. Lookup ipTaxonomy and keep only verId + taxonomies */
   {
     $lookup: {
       from: "ipTaxonomy",
@@ -11,68 +11,67 @@ db.lvl1FinancialsSummary.aggregate([
   {
     $set: {
       taxDoc: {
-        $let: { vars: { d: { $first: "$taxDoc" } },
-          in: { verId: "$$d.verId", taxonomies: "$$d.taxonomies" } }
+        $let: {
+          vars: { d: { $first: "$taxDoc" } },
+          in : { verId: "$$d.verId", taxonomies: "$$d.taxonomies" }
+        }
       }
     }
   },
 
-  /* 2️⃣  Enrich the outlook block --------------------------------------- */
+  /* 2. Enrich the outlook block (null-safe) */
   {
     $set: {
       "outlook.taxDoc": {
-        /* only do the work if an outlook.years array exists */
-        $cond: [
-          { $gt: [ { $size: { $ifNull: ["$outlook.years", []] } }, 0 ] },
-
-          /* ── build a tiny year-lookup object and use it inline ── */
-          {
-            $let: {
-              vars: {
-                byYear: {                         /* { "2025": <rec>, … } */
-                  $arrayToObject: {
-                    $map: {
-                      input: "$outlook.years",
-                      as:   "y",
-                      in: [ { $toString: "$$y.year" }, "$$y" ]
-                    }
-                  }
+        $let: {
+          vars: {
+            byYear: {                 /* helper object, {} if outlook.years is null */
+              $arrayToObject: {
+                $map: {
+                  input: { $ifNull: ["$outlook.years", []] },
+                  as:   "y",
+                  in: [ { $toString: "$$y.year" }, "$$y" ]
                 }
-              },
-              in: {
-                verId: "$taxDoc.verId",
-                taxonomies: {
-                  $map: {
-                    input: "$taxDoc.taxonomies",
-                    as:   "tx",
-                    in: {
-                      type: "$$tx.type",
-                      years: {
-                        $map: {
-                          input: "$$tx.years",
-                          as:   "txYr",
+              }
+            }
+          },
+          in: {
+            verId: "$taxDoc.verId",
+            taxonomies: {
+              $map: {
+                input: "$taxDoc.taxonomies",
+                as:   "tx",
+                in: {
+                  type: "$$tx.type",
+                  years: {
+                    $map: {
+                      input: "$$tx.years",
+                      as:   "txYr",
+                      in: {
+                        $let: {
+                          vars: {
+                            yrRec: {
+                              $getField: {
+                                field: { $toString: "$$txYr.year" },
+                                input: "$$byYear"
+                              }
+                            }
+                          },
                           in: {
-                            $let: {
-                              vars: {
-                                yrRec: {
-                                  $getField: {
-                                    field: { $toString: "$$txYr.year" },
-                                    input: "$$byYear"
-                                  }
-                                }
-                              },
-                              in: {
-                                year: "$$txYr.year",
-                                pctAllocations: {
-                                  $map: {
-                                    input: "$$txYr.pctAllocations",
-                                    as:   "alloc",
-                                    in: {
-                                      _id : "$$alloc._id",
-                                      name: "$$alloc.name",
+                            year: "$$txYr.year",
+                            pctAllocations: {
+                              $map: {
+                                input: "$$txYr.pctAllocations",
+                                as:   "alloc",
+                                in: {
+                                  _id : "$$alloc._id",
+                                  name: "$$alloc.name",
 
-                                      /* pct rounded to 6 dp */
-                                      pct: {
+                                  /* pct rounded, null-safe */
+                                  pct: {
+                                    $cond: [
+                                      { $ne: ["$$alloc.pct", null] },
+                                      {
                                         $round: [
                                           { $cond: [
                                               { $gt: ["$$alloc.pct", 1] },
@@ -82,21 +81,40 @@ db.lvl1FinancialsSummary.aggregate([
                                           6
                                         ]
                                       },
+                                      null
+                                    ]
+                                  },
 
-                                      /* fyCostSplit = pct × fyCost (rounded) */
-                                      fyCostSplit: {
-                                        $round: [
+                                  /* fyCostSplit rounded, null if pct or cost missing */
+                                  fyCostSplit: {
+                                    $let: {
+                                      vars: {
+                                        pctVal: {
+                                          $cond: [
+                                            { $ne: ["$$alloc.pct", null] },
+                                            { $cond: [
+                                                { $gt: ["$$alloc.pct", 1] },
+                                                { $divide: ["$$alloc.pct", 100] },
+                                                "$$alloc.pct"
+                                            ]},
+                                            null
+                                          ]
+                                        },
+                                        costVal: { $ifNull: ["$$yrRec.fyCost", null] }
+                                      },
+                                      in: {
+                                        $cond: [
+                                          { $and: [
+                                              { $ne: ["$$pctVal",  null] },
+                                              { $ne: ["$$costVal", null] }
+                                          ]},
                                           {
-                                            $multiply: [
-                                              { $cond: [
-                                                  { $gt: ["$$alloc.pct", 1] },
-                                                  { $divide: ["$$alloc.pct", 100] },
-                                                  "$$alloc.pct"
-                                              ]},
-                                              { $ifNull: ["$$yrRec.fyCost", 0] }
+                                            $round: [
+                                              { $multiply: ["$$pctVal", "$$costVal"] },
+                                              6
                                             ]
                                           },
-                                          6
+                                          null
                                         ]
                                       }
                                     }
@@ -112,15 +130,12 @@ db.lvl1FinancialsSummary.aggregate([
                 }
               }
             }
-          },
-
-          /* outlook block missing → leave as-is */
-          "$$REMOVE"
-        ]
+          }
+        }
       }
     }
   },
 
-  /* 3️⃣  Drop the temporary top-level taxDoc --------------------------- */
+  /* 3. Remove temporary taxDoc */
   { $unset: "taxDoc" }
 ])
