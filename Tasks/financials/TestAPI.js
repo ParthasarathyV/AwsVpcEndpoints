@@ -1,19 +1,34 @@
 const fs = require('fs');
 const axios = require('axios');
+const { v4: uuidv4 } = require('uuid');
 
-// Load and parse the payload from file
-const rawData = fs.readFileSync('./payload.json', 'utf-8');
-const payload = JSON.parse(rawData);
+// Load payload from file
+const payload = JSON.parse(fs.readFileSync('./payload.json', 'utf-8'));
 
-// Modify one field
-payload.key2 = 'newValue2';  // change key2
+// Replace a field (e.g., key2 or ipLongId) with UUID
+payload.key2 = uuidv4(); // or payload.ipLongId = uuidv4();
 
-// POST request
-axios.post('http://localhost:3000/api/data', payload, {
+// Set up query params
+const params = {
+  eventType: 'IP_COST_DETAILS',
+  ipLongId: '8710bb01-d407-48ba-98b6-ce731888d37e',
+  planId: '8263cc2d-e38d-46e5-a305-620460857f29',
+  scenario: 'outlook',
+  verId: '2024-03-01-22-00-02-000004-EST',
+  action: 'delete'
+};
+
+// Axios POST with query params and payload body
+axios.post('http://localhost:8080/financials-cost-consumer/costs/testPost', payload, {
   headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer your_token_here' // optional
-  }
+    'Content-Type': 'application/json'
+  },
+  params
 })
-.then(res => console.log('Response:', res.data))
-.catch(err => console.error('Error:', err.message));
+.then(response => {
+  console.log('Status:', response.status);
+  console.log('Response:', response.data);
+})
+.catch(error => {
+  console.error('Request failed:', error.message);
+});
