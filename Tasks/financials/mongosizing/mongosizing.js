@@ -1,20 +1,36 @@
 /**
- * DB + Collection Stats with Simple Schema (field -> type) + File Output
+ * DB + Collection Stats (KB/MB/BYTES) with Simple Schema (field -> type)
+ * + Optional Max Doc Size (off | sample | full)
  * MongoDB 6.x+, mongosh
  * -------------------------------------------------------
- * - Sizes default to KB; switch to MB or BYTES via CONFIG.UNIT.
- * - Saves report to CONFIG.outputPath (default: ./meta.json relative to current working dir).
+ * Emits a single JSON/EJSON object and saves to ./meta.json.
  */
 
 const CONFIG = {
+  // ---- Units for size fields ----
   UNIT: 'KB',                        // 'KB' (default) | 'MB' | 'BYTES'
-  outputPath: 'meta.json',           // filename or path; if relative, resolved against process.cwd()
+
+  // ---- Output file (relative to current working dir) ----
+  outputPath: 'meta.json',
+
+  // ---- Scope / behavior ----
   includeSystemDBs: false,           // include admin, config, local
   includeSystemCollections: false,   // include system.* collections
   maxCollectionsPerDB: 0,            // 0 = no limit
-  schemaSampleDocs: 5,               // set 1 if docs are uniform
+
+  // ---- Schema sampling ----
+  schemaSampleDocs: 5,               // set to 1 if docs are uniform
   walkArraysDeep: true,              // expand arrays to "field[].subfield"
-  quietWarnings: true                // set false for warnings
+
+  // ---- Max doc size computation ----
+  //   'off'    -> skip
+  //   'sample' -> compute max over a random sample (fast, approximate)
+  //   'full'   -> compute exact max over all docs (full scan; OK for <=50k docs)
+  computeMaxDocSize: 'off',
+  maxDocSampleSize: 10000,           // used when computeMaxDocSize = 'sample'
+  maxTimeMSPerAgg: 60000,            // cap each aggregation to 60s (safety)
+
+  quietWarnings: true                // set false for non-fatal warnings
 };
 
 // --- Unit helpers ---
@@ -81,10 +97,7 @@ function inferSchemaFromDocs(docs) {
     const t = bsonTypeOf(val);
     if (t === 'object') {
       if (path) add(path, 'object');
-      for (const k of Object.keys(val)) {
-        const p = path ? path + '.' + k : k;
-        walk(p, val[k]);
-      }
+      for (const k of Object.keys(val)) walk(path ? path + '.' + k : k, val[k]);
     } else if (t === 'array') {
       let elemTypes = new Set();
       for (let i = 0; i < Math.min(val.length, 50); i++) {
@@ -111,7 +124,33 @@ function inferSchemaFromDocs(docs) {
   return schema;
 }
 
-// --- Collection analysis ---
+// --- Compute max doc size (bytes) according to config ---
+function getMaxDocSizeBytes(coll) {
+  const mode = (CONFIG.computeMaxDocSize || 'off').toLowerCase();
+  if (mode === 'off') return null;
+
+  const sampleStage =
+    mode === 'sample' ? [{ $sample: { size: Math.max(1, CONFIG.maxDocSampleSize | 0) } }] : [];
+
+  const pipeline = [
+    ...sampleStage,
+    { $project: { _id: 0, s: { $bsonSize: "$$ROOT" } } },
+    { $group: { _id: null, maxS: { $max: "$s" } } }
+  ];
+
+  try {
+    const res = coll.aggregate(pipeline, {
+      allowDiskUse: true,
+      maxTimeMS: CONFIG.maxTimeMSPerAgg || undefined
+    }).toArray();
+    return res[0]?.maxS ?? null;
+  } catch (e) {
+    warn(`maxDocSize failed for ${coll.getFullName()}: ${e.message}`);
+    return null;
+  }
+}
+
+// --- Per-collection ---
 function analyzeCollection(dbName, ci) {
   const name = ci.name;
   if (!CONFIG.includeSystemCollections && name.startsWith('system.')) return null;
@@ -120,19 +159,36 @@ function analyzeCollection(dbName, ci) {
   const coll = targetDB.getCollection(name);
   const type = ci.type || 'collection';
 
-  // coll.stats: size fields scaled by UNIT.scale; avgObjSize always bytes -> convert
+  // coll.stats: size fields scaled by UNIT.scale; avgObjSize is bytes -> convert
   const stats = tryCall(() => coll.stats({ scale: UNIT.scale }), {});
   const count = (typeof stats.count === 'number') ? stats.count
                : tryCall(() => coll.estimatedDocumentCount(), null);
 
-  const avgKey = 'avgDocSize' + UNIT.label; // e.g., avgDocSizeKB
-  const ret = { collection: name, type, count };
-  ret[avgKey] = (typeof stats.avgObjSize === 'number') ? round3(toUnit(stats.avgObjSize)) : null;
+  const out = {
+    collection: name,
+    type,
+    count
+  };
 
-  // Minimal sampling for schema
+  // Avg doc size (converted to UNIT)
+  const avgKey = 'avgDocSize' + UNIT.label;
+  out[avgKey] = (typeof stats.avgObjSize === 'number') ? round3(toUnit(stats.avgObjSize)) : null;
+
+  // Optional: Max doc size (converted to UNIT)
+  const mode = (CONFIG.computeMaxDocSize || 'off').toLowerCase();
+  if (mode !== 'off') {
+    const maxBytes = getMaxDocSizeBytes(coll);
+    const maxKey = 'maxDocSize' + UNIT.label;
+    out[maxKey] = (typeof maxBytes === 'number') ? round3(toUnit(maxBytes)) : null;
+  }
+
+  // Minimal schema from sample docs
   let schema = {};
   if (CONFIG.schemaSampleDocs > 0) {
-    const cur = tryCall(() => coll.aggregate([{ $sample: { size: CONFIG.schemaSampleDocs } }], { allowDiskUse: true }), null);
+    const cur = tryCall(
+      () => coll.aggregate([{ $sample: { size: CONFIG.schemaSampleDocs } }], { allowDiskUse: true }),
+      null
+    );
     if (cur) {
       const docs = [];
       let i = 0;
@@ -141,15 +197,15 @@ function analyzeCollection(dbName, ci) {
       schema = inferSchemaFromDocs(docs);
     }
   }
-  ret.schema = schema;
+  out.schema = schema;
 
-  return ret;
+  return out;
 }
 
-// --- Database analysis ---
+// --- Per-database ---
 function analyzeDatabase(dbName) {
   const targetDB = db.getSiblingDB(dbName);
-  const s = tryCall(() => targetDB.stats(UNIT.scale), {}); // size fields scaled; avgObjSize still bytes
+  const s = tryCall(() => targetDB.stats(UNIT.scale), {}); // size fields scaled; avgObjSize bytes
 
   const dataKey = 'dataSize' + UNIT.label;
   const storageKey = 'storageSize' + UNIT.label;
@@ -180,6 +236,12 @@ function analyzeDatabase(dbName) {
   return { db: dbName, dbStats, collections };
 }
 
+// --- EJSON-friendly "generatedAt" (ISO string for simplicity) ---
+function nowIso() {
+  // Use ISO string to avoid EJSON $date shape (HTML viewer handles both anyway)
+  return new Date().toISOString();
+}
+
 // --- Main ---
 (function main() {
   const dbsRes = tryCall(() => db.adminCommand({ listDatabases: 1, nameOnly: true }), null);
@@ -189,26 +251,24 @@ function analyzeDatabase(dbName) {
   const databases = [];
   for (const name of dbNames) databases.push(analyzeDatabase(name));
 
-  const result = { generatedAt: new Date(), config: { ...CONFIG, UNIT: UNIT.label }, databases };
+  const result = { generatedAt: nowIso(), config: { ...CONFIG, UNIT: UNIT.label }, databases };
 
-  // --- Write to file (and also print) ---
+  // Prepare output (prefer EJSON relaxed for readability)
   let outStr;
   try { outStr = EJSON.stringify(result, { relaxed: true, indent: 2 }); }
   catch (e) { outStr = JSON.stringify(result, null, 2); }
 
-  // Use Node.js fs/path via mongosh
-  const path = require('path');              // Built-in modules are supported in mongosh
-  const fs = require('fs');
-
-  const outPath = path.isAbsolute(CONFIG.outputPath)
-    ? CONFIG.outputPath
-    : path.resolve(process.cwd(), CONFIG.outputPath);
-
+  // Write to file (and print)
   try {
+    const path = require('path');
+    const fs = require('fs');
+    const outPath = path.isAbsolute(CONFIG.outputPath)
+      ? CONFIG.outputPath
+      : path.resolve(process.cwd(), CONFIG.outputPath);
     fs.writeFileSync(outPath, outStr + '\n', 'utf8');
     print(`Saved report to: ${outPath}`);
   } catch (e) {
-    print(`[WARN] Could not write to ${outPath}: ${e.message}`);
+    print(`[WARN] Could not write file: ${e.message}`);
   }
 
   print(outStr);
