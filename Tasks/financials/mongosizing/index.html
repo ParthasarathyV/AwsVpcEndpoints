@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Mongo Report Viewer</title>
+<style>
+  :root{--bg:#0f172a;--panel:#111827;--soft:#1f2937;--text:#e5e7eb;--muted:#9ca3af;--accent:#22d3ee;--good:#10b981;--warn:#f59e0b;--bad:#ef4444}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{display:grid;grid-template-columns:280px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"top top" "side main";height:100%}
+  header{grid-area:top;display:flex;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid #202938;background:var(--panel);position:sticky;top:0;z-index:3}
+  header .brand{font-weight:700;letter-spacing:.3px}
+  header .grow{flex:1}
+  header .unit{display:flex;gap:6px;align-items:center}
+  header select, header button{background:var(--soft);color:var(--text);border:1px solid #2a3648;border-radius:8px;padding:6px 10px}
+  header button:hover{border-color:#38465e}
+  aside{grid-area:side;border-right:1px solid #202938;background:var(--panel);overflow:auto}
+  main{grid-area:main;overflow:auto}
+  .panel{padding:14px}
+  .u-muted{color:var(--muted)}
+  .u-mono{font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+  .drop{margin:14px;border:1.5px dashed #2a3648;border-radius:12px;padding:18px;text-align:center;background:rgba(34,211,238,.05)}
+  .drop.drag{border-color:var(--accent);background:rgba(34,211,238,.12)}
+  .db-list{list-style:none;margin:10px 0 0;padding:0}
+  .db-item{padding:10px 12px;border-bottom:1px solid #202938;cursor:pointer}
+  .db-item.active{background:#0b1220}
+  .db-item .name{font-weight:600}
+  .db-item .meta{color:var(--muted);font-size:12px;margin-top:2px}
+  .grid{display:grid;gap:12px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin:12px}
+  .card{background:var(--panel);border:1px solid #202938;border-radius:12px;padding:12px}
+  .card .k{color:var(--muted);font-size:12px}
+  .card .v{font-weight:700;font-size:18px;margin-top:4px}
+  .section{margin:16px 12px}
+  .section h3{margin:0 0 8px;font-size:16px}
+  .toolbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+  .toolbar input[type="text"]{flex:1;min-width:220px;background:var(--panel);border:1px solid #202938;border-radius:8px;padding:8px;color:var(--text)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid #202938;border-radius:12px;overflow:hidden}
+  th,td{padding:10px;border-bottom:1px solid #202938;vertical-align:top}
+  th{background:#0b1220;text-align:left;font-size:12px;color:#aab1bf}
+  tr:hover td{background:#0d1526}
+  .schema{white-space:pre-wrap}
+  .footer{padding:10px 12px;color:var(--muted);font-size:12px;border-top:1px solid #202938}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0b1220;border:1px solid #233148;font-size:12px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">Mongo Report Viewer</div>
+    <div id="fileStatus" class="u-muted u-mono"></div>
+    <div class="grow"></div>
+    <div class="unit">
+      <label for="unitSelect" class="u-muted">Display units:</label>
+      <select id="unitSelect">
+        <option value="BYTES">BYTES</option>
+        <option value="KB" selected>KB</option>
+        <option value="MB">MB</option>
+      </select>
+      <button id="exportCsvBtn" title="Export current collections table to CSV">Export CSV</button>
+    </div>
+  </header>
+
+  <aside>
+    <div class="panel">
+      <div id="drop" class="drop">
+        <strong>Drop your <code>meta.json</code> / <code>report.json</code></strong><br/>
+        or <label style="text-decoration:underline;cursor:pointer">
+          browse<input id="fileInput" type="file" accept="application/json" style="display:none">
+        </label>
+      </div>
+      <div id="reportMeta" class="u-muted" style="margin:8px 2px"></div>
+    </div>
+    <ul id="dbList" class="db-list"></ul>
+  </aside>
+
+  <main>
+    <div id="content" class="panel">
+      <p class="u-muted">Load a report JSON to begin.</p>
+    </div>
+    <div class="footer">
+      Tip: You can switch units at the top. Sizes in the table will re-scale even if the report was generated with a different unit suffix.
+    </div>
+  </main>
+</div>
+
+<script>
+(() => {
+  // ---------- Units ----------
+  const UNIT_INFO = {
+    BYTES: { scale: 1, label: "Bytes" },
+    KB:    { scale: 1024, label: "KB" },
+    MB:    { scale: 1024*1024, label: "MB" }
+  };
+  let displayUnit = "KB";
+
+  function suffixToScale(suffix){
+    const s = (suffix || "").toLowerCase();
+    if (s === "bytes" || s === "byte") return 1;
+    if (s === "kb") return 1024;
+    if (s === "mb") return 1024*1024;
+    return 1; // default
+  }
+
+  function convertSize(val, fromSuffix, toSuffix){
+    if (typeof val !== "number") return null;
+    const from = suffixToScale(fromSuffix);
+    const to = suffixToScale(toSuffix);
+    return val * (from / to);
+  }
+
+  function round(n, dp=3){
+    const m = Math.pow(10, dp);
+    return Math.round(n * m) / m;
+  }
+
+  // ---------- Date parsing (handles EJSON $date) ----------
+  function parseEjsonDate(val) {
+    if (!val) return null;
+
+    if (typeof val === 'string' || typeof val === 'number') {
+      const d = new Date(val);
+      return isNaN(d) ? null : d;
+    }
+    if (typeof val === 'object' && val.$date != null) {
+      const v = val.$date;
+      if (typeof v === 'string' || typeof v === 'number') {
+        const d = new Date(v);
+        return isNaN(d) ? null : d;
+      }
+      if (v && typeof v === 'object' && typeof v.$numberLong === 'string') {
+        const d = new Date(Number(v.$numberLong));
+        return isNaN(d) ? null : d;
+      }
+    }
+    return null;
+  }
+
+  // ---------- State ----------
+  let report = null; // parsed JSON
+  let currentDBIndex = -1; // selected DB
+
+  // ---------- DOM helpers ----------
+  const $ = sel => document.querySelector(sel);
+  const $$ = sel => Array.from(document.querySelectorAll(sel));
+  const content = $("#content");
+  const dbList = $("#dbList");
+  const fileStatus = $("#fileStatus");
+  const exportBtn = $("#exportCsvBtn");
+
+  // ---------- File load ----------
+  const fileInput = $("#fileInput");
+  const drop = $("#drop");
+  fileInput.addEventListener("change", ev => {
+    const f = ev.target.files && ev.target.files[0];
+    if (f) readFile(f);
+  });
+
+  ["dragenter","dragover"].forEach(evt => drop.addEventListener(evt, e => {e.preventDefault(); drop.classList.add("drag");}));
+  ["dragleave","drop"].forEach(evt => drop.addEventListener(evt, e => {e.preventDefault(); drop.classList.remove("drag");}));
+  drop.addEventListener("drop", e => {
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) readFile(f);
+  });
+
+  function readFile(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        report = JSON.parse(reader.result);
+        fileStatus.textContent = `Loaded ${file.name} (${formatBytes(file.size)})`;
+        initUIFromReport(report);
+      } catch (err){
+        fileStatus.textContent = "Invalid JSON: " + err.message;
+      }
+    };
+    reader.readAsText(file, "utf-8");
+  }
+
+  function formatBytes(n){
+    if (n < 1024) return n + " B";
+    if (n < 1024*1024) return (n/1024).toFixed(1) + " KB";
+    return (n/1024/1024).toFixed(1) + " MB";
+  }
+
+  // ---------- Report handling ----------
+  function getReportUnitSuffix(){
+    const cfgUnit = report && report.config && report.config.UNIT;
+    if (cfgUnit) return ("" + cfgUnit).toLowerCase();
+    const firstDb = report && report.databases && report.databases[0];
+    if (firstDb){
+      const sfx = detectSizeSuffixFromKeys(firstDb.dbStats || {});
+      if (sfx) return sfx.toLowerCase();
+    }
+    return "kb";
+  }
+
+  function detectSizeSuffixFromKeys(obj){
+    const keys = Object.keys(obj||{});
+    const rx = /^(dataSize|storageSize|indexSize|avgObjSize)(Bytes|KB|MB)?$/i;
+    for (const k of keys){
+      const m = k.match(rx);
+      if (m) return m[2] || "";
+    }
+    return null;
+  }
+
+  function findSize(obj, baseName){
+    const rx = new RegExp("^" + baseName + "(Bytes|KB|MB)?$", "i");
+    for (const k of Object.keys(obj||{})){
+      const m = k.match(rx);
+      if (m) return { value: obj[k], fromSuffix: (m[1]||"").toLowerCase() || getReportUnitSuffix() };
+    }
+    return { value: null, fromSuffix: getReportUnitSuffix() };
+  }
+
+  function initUIFromReport(rep){
+    // Default display unit to the report's unit, but leave user toggle as selected
+    const repUnit = getReportUnitSuffix().toUpperCase();
+    const sel = $("#unitSelect");
+    if (!["BYTES","KB","MB"].includes(sel.value)) sel.value = repUnit;
+    displayUnit = sel.value;
+
+    // Meta
+    const meta = $("#reportMeta");
+    const dbCount = (rep.databases || []).length;
+    const gen = parseEjsonDate(rep.generatedAt);
+    meta.innerHTML = `
+      <div>Databases: <strong>${dbCount}</strong></div>
+      <div>Generated: <span class="u-mono">${gen ? gen.toLocaleString() : "-"}</span></div>
+      <div>Report Unit: <span class="pill">${(rep.config && rep.config.UNIT) || "Unknown"}</span></div>
+    `;
+
+    // Sidebar DB list
+    dbList.innerHTML = "";
+    (rep.databases || []).forEach((db, idx) => {
+      const li = document.createElement("li");
+      li.className = "db-item";
+      li.innerHTML = `
+        <div class="name">${escapeHtml(db.db)}</div>
+        <div class="meta u-mono">${summarizeDbLine(db)}</div>
+      `;
+      li.addEventListener("click", () => selectDB(idx));
+      dbList.appendChild(li);
+    });
+
+    if ((rep.databases||[]).length > 0){
+      selectDB(0);
+    } else {
+      content.innerHTML = `<p class="u-muted">No databases in report.</p>`;
+    }
+  }
+
+  function selectDB(idx){
+    currentDBIndex = idx;
+    $$(".db-item").forEach((el,i)=> el.classList.toggle("active", i===idx));
+    const db = report.databases[idx];
+    renderDB(db);
+  }
+
+  function summarizeDbLine(db){
+    const s = db.dbStats || {};
+    const { value: dataVal, fromSuffix: dsfx } = findSize(s, "dataSize");
+    const out = (dataVal != null) ? round(convertSize(dataVal, dsfx, displayUnit), 2) + " " + displayUnit : "-";
+    return `${(db.collections||[]).length} collections • data ${out}`;
+  }
+
+  // ---------- Rendering ----------
+  function renderDB(db){
+    const s = db.dbStats || {};
+    const unit = displayUnit;
+
+    const ds = findSize(s, "dataSize");
+    const ss = findSize(s, "storageSize");
+    const ix = findSize(s, "indexSize");
+    const av = findSize(s, "avgObjSize");
+
+    const cards = [
+      {k:"Database", v: db.db},
+      {k:"Collections", v: s.collections ?? (db.collections||[]).length},
+      {k:"Objects", v: s.objects ?? "-"},
+      {k:`Data (${unit})`, v: fmtSize(ds.value, ds.fromSuffix, unit)},
+      {k:`Storage (${unit})`, v: fmtSize(ss.value, ss.fromSuffix, unit)},
+      {k:`Indexes (${unit})`, v: fmtSize(ix.value, ix.fromSuffix, unit)},
+      {k:`Avg Obj Size (${unit})`, v: fmtSize(av.value, av.fromSuffix, unit)}
+    ];
+
+    const cardsHtml = cards.map(c => `
+      <div class="card">
+        <div class="k">${c.k}</div>
+        <div class="v u-mono">${escapeHtml(c.v)}</div>
+      </div>
+    `).join("");
+
+    const cols = db.collections || [];
+    const tableHtml = renderCollectionsTable(cols, unit);
+
+    content.innerHTML = `
+      <div class="grid cards">${cardsHtml}</div>
+      <div class="section">
+        <h3>Collections</h3>
+        <div class="toolbar">
+          <input id="filterInput" type="text" placeholder="Filter collections by name…">
+          <span class="u-muted">Total: ${cols.length}</span>
+        </div>
+        <div id="collectionsWrap">${tableHtml}</div>
+      </div>
+      <div id="schemaWrap" class="section hidden"></div>
+    `;
+
+    $("#filterInput").addEventListener("input", e => {
+      const q = e.target.value.toLowerCase();
+      const filtered = cols.filter(c => (c.collection || "").toLowerCase().includes(q));
+      $("#collectionsWrap").innerHTML = renderCollectionsTable(filtered, unit);
+      attachRowHandlers(db, filtered);
+    });
+
+    attachRowHandlers(db, cols);
+  }
+
+  function renderCollectionsTable(cols, unit){
+    const th = `
+      <thead><tr>
+        <th>Collection</th>
+        <th>Type</th>
+        <th>Count</th>
+        <th>Avg Doc Size (${unit})</th>
+        <th>Schema</th>
+      </tr></thead>
+    `;
+    const rows = cols.map(c => {
+      const { value: av, fromSuffix } = findSize(c, "avgDocSize");
+      const avg = fmtSize(av, fromSuffix, unit);
+      return `
+        <tr data-coll="${escapeHtml(c.collection)}">
+          <td class="u-mono">${escapeHtml(c.collection)}</td>
+          <td>${escapeHtml(c.type || "collection")}</td>
+          <td class="u-mono">${c.count ?? "-"}</td>
+          <td class="u-mono">${avg}</td>
+          <td><button class="showSchemaBtn">View schema</button></td>
+        </tr>
+      `;
+    }).join("");
+    return `<table id="collectionsTbl">${th}<tbody>${rows}</tbody></table>`;
+  }
+
+  function attachRowHandlers(db, cols){
+    $$("#collectionsTbl .showSchemaBtn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const collName = btn.closest("tr").getAttribute("data-coll");
+        const coll = (db.collections || []).find(x => x.collection === collName);
+        renderSchema(db.db, coll);
+      });
+    });
+  }
+
+  function renderSchema(dbName, coll){
+    const wrap = $("#schemaWrap");
+    if (!coll || !coll.schema){
+      wrap.classList.remove("hidden");
+      wrap.innerHTML = `<h3>Schema</h3><div class="u-muted">No schema found for ${escapeHtml(coll ? coll.collection : "")}.</div>`;
+      return;
+    }
+    const entries = Object.entries(coll.schema).sort((a,b)=>a[0].localeCompare(b[0]));
+    const rows = entries.map(([k,v]) => `
+      <tr><td class="u-mono">${escapeHtml(k)}</td><td class="u-mono">${escapeHtml(String(v))}</td></tr>
+    `).join("");
+    wrap.classList.remove("hidden");
+    wrap.innerHTML = `
+      <h3>Schema — <span class="u-mono">${escapeHtml(dbName)}.${escapeHtml(coll.collection)}</span></h3>
+      <table>
+        <thead><tr><th>Field</th><th>Type</th></tr></thead>
+        <tbody>${rows || `<tr><td colspan="2" class="u-muted">Empty</td></tr>`}</tbody>
+      </table>
+    `;
+    wrap.scrollIntoView({behavior:"smooth", block:"start"});
+  }
+
+  function fmtSize(val, fromSfx, toSfx){
+    if (val == null) return "-";
+    const v = convertSize(val, fromSfx, toSfx);
+    if (v == null) return "-";
+    return round(v, 3) + " " + toSfx;
+  }
+
+  function escapeHtml(s){
+    return String(s ?? "")
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
+
+  // ---------- Unit selector ----------
+  $("#unitSelect").addEventListener("change", e => {
+    displayUnit = e.target.value;
+    if (report && report.databases && report.databases.length){
+      selectDB(currentDBIndex >=0 ? currentDBIndex : 0);
+      $$("#dbList .db-item .meta").forEach((el, i) => {
+        const db = report.databases[i];
+        el.textContent = summarizeDbLine(db);
+      });
+    }
+  });
+
+  // ---------- CSV Export ----------
+  exportBtn.addEventListener("click", () => {
+    if (!report || currentDBIndex < 0) return;
+    const db = report.databases[currentDBIndex];
+    const unit = displayUnit;
+    const rows = (db.collections || []).map(c => {
+      const { value: av, fromSuffix } = findSize(c, "avgDocSize");
+      return {
+        database: db.db,
+        collection: c.collection,
+        type: c.type || "collection",
+        count: c.count ?? "",
+        avg_doc_size: convertSize(av, fromSuffix, unit),
+        unit
+      };
+    });
+    const csv = toCSV(rows);
+    const name = `collections_${sanitize(db.db)}_${unit}.csv`;
+    downloadBlob(csv, name, "text/csv;charset=utf-8");
+  });
+
+  function toCSV(rows){
+    if (!rows.length) return "";
+    const headers = Object.keys(rows[0]);
+    const esc = v => {
+      const s = v==null ? "" : String(v);
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g,'""')}"`;
+      return s;
+    };
+    return headers.join(",") + "\n" +
+           rows.map(r => headers.map(h => esc(r[h])).join(",")).join("\n");
+  }
+  function downloadBlob(text, filename, type){
+    const blob = new Blob([text], {type});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1500);
+  }
+  function sanitize(name){ return name.replace(/[^a-z0-9_-]+/gi,"_"); }
+
+})();
+</script>
+</body>
+</html>
