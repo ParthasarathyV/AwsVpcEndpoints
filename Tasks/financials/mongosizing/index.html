@@ -51,13 +51,6 @@
     <div class="brand">Mongo Report Viewer</div>
     <div id="fileStatus" class="u-muted u-mono"></div>
     <div class="grow"></div>
-
-    <label for="metricSelect" class="u-muted">Metric:</label>
-    <select id="metricSelect" title="Choose which size to display">
-      <option value="avgDocSize">Avg Doc Size</option>
-      <option value="maxDocSize">Max Doc Size</option>
-    </select>
-
     <label for="unitSelect" class="u-muted">Units:</label>
     <select id="unitSelect">
       <option value="BYTES">BYTES</option>
@@ -85,7 +78,7 @@
       <p class="u-muted">Load a report JSON to begin.</p>
     </div>
     <div class="panel u-muted" style="border-top:1px solid #202938">
-      Tip: Use the <b>Metric</b> switch to view Avg or Max doc size. If Max is not present in the report, it will show “–”.
+      If a collection lacks Avg or Max in the JSON, that cell will show “–”.
     </div>
   </main>
 </div>
@@ -95,7 +88,6 @@
   // ---------- Units ----------
   const UNIT_INFO = { BYTES:{scale:1,label:"Bytes"}, KB:{scale:1024,label:"KB"}, MB:{scale:1024*1024,label:"MB"} };
   let displayUnit = "KB";
-  let displayMetricBase = "avgDocSize"; // or "maxDocSize"
 
   function suffixToScale(suffix){
     const s = (suffix || "").toLowerCase();
@@ -141,7 +133,6 @@
   const dbList = $("#dbList");
   const fileStatus = $("#fileStatus");
   const exportBtn = $("#exportCsvBtn");
-  const metricSelect = $("#metricSelect");
 
   // ---------- File load ----------
   const fileInput = $("#fileInput");
@@ -205,6 +196,10 @@
     }
     return { value: null, fromSuffix: getReportUnitSuffix() };
   }
+  function hasSizeKey(obj, baseName){
+    const rx = new RegExp("^" + baseName + "(Bytes|KB|MB)?$", "i");
+    return Object.keys(obj||{}).some(k => rx.test(k));
+  }
 
   function initUIFromReport(rep){
     // Units
@@ -212,12 +207,6 @@
     const sel = $("#unitSelect");
     if (!["BYTES","KB","MB"].includes(sel.value)) sel.value = repUnit;
     displayUnit = sel.value;
-
-    // Metric selector: if no maxDocSize is present anywhere, default to Avg
-    const hasMax = (rep.databases || []).some(db =>
-      (db.collections || []).some(c => Object.keys(c).some(k => /^maxDocSize(Bytes|KB|MB)?$/.test(k)))
-    );
-    metricSelect.value = hasMax ? metricSelect.value : "avgDocSize"; // don’t force max if not available
 
     // Meta
     const meta = $("#reportMeta");
@@ -316,29 +305,43 @@
   }
 
   function renderCollectionsTable(cols, unit){
-    const isMax = displayMetricBase === "maxDocSize";
+    const hasAnyAvg = cols.some(c => hasSizeKey(c, "avgDocSize"));
+    const hasAnyMax = cols.some(c => hasSizeKey(c, "maxDocSize"));
+
     const th = `
       <thead><tr>
         <th>Collection</th>
         <th>Type</th>
         <th>Count</th>
-        <th>${isMax ? "Max" : "Avg"} Doc Size (${unit})</th>
+        ${hasAnyAvg ? `<th>Avg Doc Size (${unit})</th>` : ""}
+        ${hasAnyMax ? `<th>Max Doc Size (${unit})</th>` : ""}
         <th>Schema</th>
       </tr></thead>
     `;
+
     const rows = cols.map(c => {
-      const { value: val, fromSuffix } = findSize(c, displayMetricBase);
-      const shown = fmtSize(val, fromSuffix, unit);
+      let avgShown = "";
+      if (hasAnyAvg) {
+        const { value: av, fromSuffix: avSfx } = findSize(c, "avgDocSize");
+        avgShown = `<td class="u-mono">${fmtSize(av, avSfx, unit)}</td>`;
+      }
+      let maxShown = "";
+      if (hasAnyMax) {
+        const { value: mx, fromSuffix: mxSfx } = findSize(c, "maxDocSize");
+        maxShown = `<td class="u-mono">${fmtSize(mx, mxSfx, unit)}</td>`;
+      }
       return `
         <tr data-coll="${escapeHtml(c.collection)}">
           <td class="u-mono">${escapeHtml(c.collection)}</td>
           <td>${escapeHtml(c.type || "collection")}</td>
           <td class="u-mono">${c.count ?? "-"}</td>
-          <td class="u-mono">${shown}</td>
+          ${avgShown}
+          ${maxShown}
           <td><button class="showSchemaBtn">View schema</button></td>
         </tr>
       `;
     }).join("");
+
     return `<table id="collectionsTbl">${th}<tbody>${rows}</tbody></table>`;
   }
 
@@ -387,7 +390,7 @@
       .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
   }
 
-  // ---------- Toggles ----------
+  // ---------- Unit selector ----------
   $("#unitSelect").addEventListener("change", e => {
     displayUnit = e.target.value;
     if (report && report.databases && report.databases.length){
@@ -399,34 +402,26 @@
     }
   });
 
-  metricSelect.addEventListener("change", (e) => {
-    displayMetricBase = e.target.value; // "avgDocSize" or "maxDocSize"
-    if (report && report.databases && report.databases.length){
-      selectDB(currentDBIndex >=0 ? currentDBIndex : 0);
-    }
-  });
-
-  // ---------- CSV Export ----------
+  // ---------- CSV Export (includes both Avg/Max if present) ----------
   exportBtn.addEventListener("click", () => {
     if (!report || currentDBIndex < 0) return;
     const db = report.databases[currentDBIndex];
     const unit = displayUnit;
-    const base = displayMetricBase; // avgDocSize or maxDocSize
-    const label = base === "maxDocSize" ? "max_doc_size" : "avg_doc_size";
-
     const rows = (db.collections || []).map(c => {
-      const { value: v, fromSuffix } = findSize(c, base);
+      const { value: av, fromSuffix: avSfx } = findSize(c, "avgDocSize");
+      const { value: mx, fromSuffix: mxSfx } = findSize(c, "maxDocSize");
       return {
         database: db.db,
         collection: c.collection,
         type: c.type || "collection",
         count: c.count ?? "",
-        [label]: convertSize(v, fromSuffix, unit),
+        avg_doc_size: (av == null ? "" : convertSize(av, avSfx, unit)),
+        max_doc_size: (mx == null ? "" : convertSize(mx, mxSfx, unit)),
         unit
       };
     });
     const csv = toCSV(rows);
-    const name = `collections_${sanitize(db.db)}_${label}_${unit}.csv`;
+    const name = `collections_${sanitize(db.db)}_${unit}.csv`;
     downloadBlob(csv, name, "text/csv;charset=utf-8");
   });
 
