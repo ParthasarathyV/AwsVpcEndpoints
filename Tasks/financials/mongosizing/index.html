@@ -39,8 +39,10 @@
   .toolbar input[type="text"]{flex:1;min-width:220px;background:#111827;border:1px solid #202938;border-radius:8px;padding:8px;color:#e5e7eb}
   table{width:100%;border-collapse:collapse;background:#111827;border:1px solid #202938;border-radius:12px;overflow:hidden}
   th,td{padding:10px;border-bottom:1px solid #202938;vertical-align:top}
-  th{background:#0b1220;text-align:left;font-size:12px;color:#aab1bf}
+  th{background:#0b1220;text-align:left;font-size:12px;color:#aab1bf;user-select:none}
+  th.sortable{cursor:pointer}
   tr:hover td{background:#0d1526}
+  .sort-ind{font-size:10px;margin-left:6px;opacity:.8}
   .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0b1220;border:1px solid #233148;font-size:12px}
   .hidden{display:none}
 </style>
@@ -78,7 +80,7 @@
       <p class="u-muted">Load a report JSON to begin.</p>
     </div>
     <div class="panel u-muted" style="border-top:1px solid #202938">
-      If a collection lacks Avg or Max in the JSON, that cell will show “–”.
+      Click a column header to sort. Click again to toggle ascending/descending.
     </div>
   </main>
 </div>
@@ -125,6 +127,7 @@
   // ---------- State ----------
   let report = null;
   let currentDBIndex = -1;
+  let sortState = { key: 'collection', dir: 'asc' }; // 'collection' | 'type' | 'count' | 'avg' | 'max'
 
   // ---------- DOM ----------
   const $ = s => document.querySelector(s);
@@ -202,13 +205,11 @@
   }
 
   function initUIFromReport(rep){
-    // Units
     const repUnit = getReportUnitSuffix().toUpperCase();
     const sel = $("#unitSelect");
     if (!["BYTES","KB","MB"].includes(sel.value)) sel.value = repUnit;
     displayUnit = sel.value;
 
-    // Meta
     const meta = $("#reportMeta");
     const dbCount = (rep.databases || []).length;
     const gen = parseEjsonDate(rep.generatedAt);
@@ -218,7 +219,6 @@
       <div>Report Unit: <span class="pill">${(rep.config && rep.config.UNIT) || "Unknown"}</span></div>
     `;
 
-    // Sidebar DB list
     dbList.innerHTML = "";
     (rep.databases || []).forEach((db, idx) => {
       const li = document.createElement("li");
@@ -305,44 +305,110 @@
   }
 
   function renderCollectionsTable(cols, unit){
+    // Which columns exist?
     const hasAnyAvg = cols.some(c => hasSizeKey(c, "avgDocSize"));
     const hasAnyMax = cols.some(c => hasSizeKey(c, "maxDocSize"));
 
+    // Sort the data according to sortState
+    const sorted = [...cols].sort((a, b) => compareRows(a, b, unit, hasAnyAvg, hasAnyMax));
     const th = `
       <thead><tr>
-        <th>Collection</th>
-        <th>Type</th>
-        <th>Count</th>
-        ${hasAnyAvg ? `<th>Avg Doc Size (${unit})</th>` : ""}
-        ${hasAnyMax ? `<th>Max Doc Size (${unit})</th>` : ""}
+        ${sortableTh('Collection','collection')}
+        ${sortableTh('Type','type')}
+        ${sortableTh('Count','count')}
+        ${hasAnyAvg ? sortableTh(`Avg Doc Size (${unit})`,'avg') : ""}
+        ${hasAnyMax ? sortableTh(`Max Doc Size (${unit})`,'max') : ""}
         <th>Schema</th>
       </tr></thead>
     `;
 
-    const rows = cols.map(c => {
-      let avgShown = "";
-      if (hasAnyAvg) {
+    const rows = sorted.map(c => {
+      const avgCell = hasAnyAvg ? (() => {
         const { value: av, fromSuffix: avSfx } = findSize(c, "avgDocSize");
-        avgShown = `<td class="u-mono">${fmtSize(av, avSfx, unit)}</td>`;
-      }
-      let maxShown = "";
-      if (hasAnyMax) {
+        return `<td class="u-mono">${fmtSize(av, avSfx, unit)}</td>`;
+      })() : "";
+
+      const maxCell = hasAnyMax ? (() => {
         const { value: mx, fromSuffix: mxSfx } = findSize(c, "maxDocSize");
-        maxShown = `<td class="u-mono">${fmtSize(mx, mxSfx, unit)}</td>`;
-      }
+        return `<td class="u-mono">${fmtSize(mx, mxSfx, unit)}</td>`;
+      })() : "";
+
       return `
         <tr data-coll="${escapeHtml(c.collection)}">
-          <td class="u-mono">${escapeHtml(c.collection)}</td>
+          <td class="u-mono">${escapeHtml(c.collection || "")}</td>
           <td>${escapeHtml(c.type || "collection")}</td>
           <td class="u-mono">${c.count ?? "-"}</td>
-          ${avgShown}
-          ${maxShown}
+          ${avgCell}
+          ${maxCell}
           <td><button class="showSchemaBtn">View schema</button></td>
         </tr>
       `;
     }).join("");
 
-    return `<table id="collectionsTbl">${th}<tbody>${rows}</tbody></table>`;
+    const table = `<table id="collectionsTbl">${th}<tbody>${rows}</tbody></table>`;
+    // Hook up header click handlers after table is in DOM
+    setTimeout(() => wireSortHeaders(hasAnyAvg, hasAnyMax), 0);
+    return table;
+  }
+
+  // ----- Sorting helpers -----
+  function sortableTh(label, key){
+    const active = sortState.key === key;
+    const arrow = active ? (sortState.dir === 'asc' ? '▲' : '▼') : '';
+    const cls = key ? 'sortable' : '';
+    return `<th class="${cls}" data-sort-key="${key}">${label}${arrow ? `<span class="sort-ind">${arrow}</span>`:''}</th>`;
+  }
+
+  function wireSortHeaders(hasAvg, hasMax){
+    const keys = ['collection','type','count'];
+    if (hasAvg) keys.push('avg');
+    if (hasMax) keys.push('max');
+    keys.forEach(k => {
+      const th = document.querySelector(`th[data-sort-key="${k}"]`);
+      if (!th) return;
+      th.addEventListener('click', () => {
+        if (sortState.key === k) {
+          sortState.dir = (sortState.dir === 'asc') ? 'desc' : 'asc';
+        } else {
+          sortState.key = k;
+          sortState.dir = 'asc';
+        }
+        // Re-render current DB to apply new sort
+        selectDB(currentDBIndex);
+      }, { once: true }); // prevent double-binding on re-render
+    });
+  }
+
+  function compareRows(a, b, unit, hasAvg, hasMax){
+    const dir = sortState.dir === 'asc' ? 1 : -1;
+    switch (sortState.key) {
+      case 'collection':
+        return dir * String(a.collection || '').localeCompare(String(b.collection || ''), undefined, { sensitivity:'base' });
+      case 'type':
+        return dir * String(a.type || '').localeCompare(String(b.type || ''), undefined, { sensitivity:'base' });
+      case 'count':
+        return dir * ( (a.count ?? -Infinity) - (b.count ?? -Infinity) );
+      case 'avg': {
+        const avA = sizeForSort(a, 'avgDocSize', unit);
+        const avB = sizeForSort(b, 'avgDocSize', unit);
+        return dir * (avA - avB);
+      }
+      case 'max': {
+        const mxA = sizeForSort(a, 'maxDocSize', unit);
+        const mxB = sizeForSort(b, 'maxDocSize', unit);
+        return dir * (mxA - mxB);
+      }
+      default:
+        return 0;
+    }
+  }
+
+  function sizeForSort(coll, base, toUnit){
+    const { value, fromSuffix } = findSize(coll, base);
+    if (value == null) return -Infinity;
+    const v = convertSize(value, fromSuffix, toUnit);
+    return (typeof v === 'number' && !isNaN(v)) ? v : -Infinity;
+    // Using -Infinity pushes missing values to the bottom in asc mode
   }
 
   function attachRowHandlers(db, cols){
@@ -402,7 +468,7 @@
     }
   });
 
-  // ---------- CSV Export (includes both Avg/Max if present) ----------
+  // ---------- CSV Export (both Avg/Max if present) ----------
   exportBtn.addEventListener("click", () => {
     if (!report || currentDBIndex < 0) return;
     const db = report.databases[currentDBIndex];
