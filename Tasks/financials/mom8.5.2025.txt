@@ -1,0 +1,62 @@
+Here is the full plain text version of the answer that you can copy and paste directly — no formatting issues, no emojis, just clean text:
+
+⸻
+
+Question 1: Under what circumstances does WriteConflict occur in my transaction?
+
+In your transaction (which includes lvl4 upsert, aggregation, lvl3 bulk upsert, and lvl3 deletes), WriteConflict occurs when two concurrent operations try to write to the same document in either lvl4 or lvl3.
+
+Specifically:
+	•	If two ECS events attempt to upsert the same ipLongId + planId document in lvl4 at the same time → WriteConflict.
+	•	If two threads or services bulk upsert or delete overlapping keys in lvl3 (e.g., same ipLongId + planId + year) concurrently → WriteConflict.
+
+These conflicts happen at the document level, and MongoDB handles them using Optimistic Concurrency Control (OCC). This means:
+	•	No document-level lock is acquired.
+	•	The write proceeds, and at commit time, if the document was modified by another transaction, it fails immediately.
+	•	This failure is not controlled by any lock timeout.
+
+⸻
+
+Question 2: What is the role of maxTransactionLockRequestTimeoutMillis in this setup?
+
+This parameter defines how long a transaction will wait to acquire collection-level or namespace-level locks, such as:
+	•	Locks required for DDL operations (index builds, renames, drops),
+	•	Concurrent large-range deletes or writes across documents in the same collection.
+
+In your flow:
+	•	Step 1 (lvl4 upsert): OCC applies, no locks are waited on → timeout does not help.
+	•	Step 2 (aggregation): Read-only, no locking contention → timeout not relevant.
+	•	Step 3 (lvl3 multi-document upsert): OCC applies per doc. Timeout does not help, unless another operation holds a long-running collection-level lock (rare).
+	•	Step 4 (delete from lvl3): This is the only step where the timeout might help, if:
+	•	You’re deleting many docs (wide key range), and
+	•	Another operation is holding a conflicting lock on lvl3.
+
+But this is not the common cause of WriteConflict. Most likely, your deletes and upserts are targeting overlapping docs, so OCC still applies.
+
+In summary:
+For your use case, maxTransactionLockRequestTimeoutMillis has minimal to no impact, except in edge cases where lvl3 operations are blocked by long-running writes or DDLs.
+
+⸻
+
+Question 3: If I write to lvl4 and lvl3 separately (not in the same transaction), will I still get WriteConflict?
+
+Yes, you can still get WriteConflict, and likely more often.
+
+This is because:
+	•	OCC applies independently per operation.
+	•	Writing lvl4 and lvl3 in separate transactions (or threads) does not protect you from concurrent writes to the same document.
+	•	If two ECS services process the same proposal simultaneously and write to the same lvl4 or lvl3 keys, the second one will fail with a WriteConflict.
+
+Whether you group the writes together in one transaction or split them, if the target documents overlap, OCC can still detect a conflict.
+
+The only benefit of using a single transaction is atomicity — both writes succeed or fail together. It does not eliminate the underlying concurrency risk.
+
+⸻
+
+Final Summary for Your Transaction Design
+	•	When does WriteConflict occur?
+When two transactions write to the same lvl4 or lvl3 document concurrently. OCC fails one operation immediately.
+	•	Will maxTransactionLockRequestTimeoutMillis help?
+No, except in rare cases during lvl3 deletes where collection-level locks might block. Most of your conflicts are OCC-based, not lock waits.
+	•	Will I still get WriteConflict if I write lvl4 and lvl3 separately?
+Yes. OCC still applies to each collection independently. If the documents overlap, conflicts will occur regardless of transaction boundaries.
