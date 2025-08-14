@@ -1,43 +1,33 @@
-// inputs
-const PAGE = [
-  /* array of proposalIds for this page */
-  "532188bb-6530-4bbf-ad67-c64ebafc4dbc",
-  // ...
+const EXPECT = [
+  {
+    proposalId: "532188bb-6530-4bbf-ad67-c64ebafc4dbc",
+    outlook:        { planId: "8b42752a-8be3-415a-89fa-d8cfd9c70a18", verId: "2025-08-07-13-33-20-416000-EST" },
+    budget:         { planId: "", verId: "" },
+    live:           { planId: "8b42752a-8be3-415a-89fa-d8cfd9c70a19", verId: "2025-06-26-04-37-41-763000-EST" },
+    pendingApproval:{ planId: "", verId: "" }
+  }
+  // ... more proposals
 ];
 
 db.lvl2.aggregate([
-  { $match: { proposalId: { $in: PAGE } } },
+  { $match: { proposalId: { $in: EXPECT.map(e => e.proposalId) } } },
 
-  // bring expected planId/verId per scenario from L1
-  {
-    $lookup: {
-      from: "lvl1",
-      localField: "proposalId",
-      foreignField: "proposalId",
-      pipeline: [
-        {
-          $project: {
-            _id: 0,
-            proposalId: 1,
-            "outlook.planId": 1, "outlook.verId": 1,
-            "budget.planId": 1,  "budget.verId": 1,
-            "live.planId": 1,    "live.verId": 1
+  { $set: {
+      exp: {
+        $first: {
+          $filter: {
+            input: EXPECT,
+            as: "ex",
+            cond: { $eq: ["$$ex.proposalId", "$proposalId"] }
           }
         }
-      ],
-      as: "l1"
-    }
-  },
-  { $set: {
-      exp: { $first: "$l1" },
-      outlookArr: { $ifNull: ["$outlook", []] },
-      budgetArr:  { $ifNull: ["$budget",  []] },
-      liveArr:    { $ifNull: ["$live",    []] }
+      },
+      outArr:  { $ifNull: ["$outlook",        []] },
+      budArr:  { $ifNull: ["$budget",         []] },
+      liveArr: { $ifNull: ["$live",           []] },
+      paArr:   { $ifNull: ["$pendingApproval",[]] }
   }},
 
-  // for each scenario:
-  // - if L1 has empty planId or verId => L2 must have NO elements (size 0)
-  // - else => every element must match that planId & verId, and array must be non-empty
   { $set: {
       outlookMismatch: {
         $cond: [
@@ -45,54 +35,50 @@ db.lvl2.aggregate([
             { $eq: ["$exp.outlook.planId", ""] },
             { $eq: ["$exp.outlook.verId",  ""] }
           ]},
-          { $gt: [ { $size: "$outlookArr" }, 0 ] },
+          { $gt: [ { $size: "$outArr" }, 0 ] },
           { $not: [
               { $and: [
-                { $gt: [ { $size: "$outlookArr" }, 0 ] },
-                {
-                  $allElementsTrue: {
+                { $gt: [ { $size: "$outArr" }, 0 ] },
+                { $allElementsTrue: {
                     $map: {
-                      input: "$outlookArr",
+                      input: "$outArr",
                       as: "e",
                       in: { $and: [
                         { $eq: ["$$e.planId", "$exp.outlook.planId"] },
                         { $eq: ["$$e.verId",  "$exp.outlook.verId"  ] }
                       ]}
                     }
-                  }
-                }
-              ]}
-            ]
-          }
+                } }
+              ] }
+          ] }
         ]
       },
+
       budgetMismatch: {
         $cond: [
           { $or: [
             { $eq: ["$exp.budget.planId", ""] },
             { $eq: ["$exp.budget.verId",  ""] }
           ]},
-          { $gt: [ { $size: "$budgetArr" }, 0 ] },
+          { $gt: [ { $size: "$budArr" }, 0 ] },
           { $not: [
               { $and: [
-                { $gt: [ { $size: "$budgetArr" }, 0 ] },
-                {
-                  $allElementsTrue: {
+                { $gt: [ { $size: "$budArr" }, 0 ] },
+                { $allElementsTrue: {
                     $map: {
-                      input: "$budgetArr",
+                      input: "$budArr",
                       as: "e",
                       in: { $and: [
                         { $eq: ["$$e.planId", "$exp.budget.planId"] },
                         { $eq: ["$$e.verId",  "$exp.budget.verId"  ] }
                       ]}
                     }
-                  }
-                }
-              ]}
-            ]
-          }
+                } }
+              ] }
+          ] }
         ]
       },
+
       liveMismatch: {
         $cond: [
           { $or: [
@@ -103,8 +89,7 @@ db.lvl2.aggregate([
           { $not: [
               { $and: [
                 { $gt: [ { $size: "$liveArr" }, 0 ] },
-                {
-                  $allElementsTrue: {
+                { $allElementsTrue: {
                     $map: {
                       input: "$liveArr",
                       as: "e",
@@ -113,11 +98,34 @@ db.lvl2.aggregate([
                         { $eq: ["$$e.verId",  "$exp.live.verId"  ] }
                       ]}
                     }
-                  }
-                }
-              ]}
-            ]
-          }
+                } }
+              ] }
+          ] }
+        ]
+      },
+
+      pendingApprovalMismatch: {
+        $cond: [
+          { $or: [
+            { $eq: ["$exp.pendingApproval.planId", ""] },
+            { $eq: ["$exp.pendingApproval.verId",  ""] }
+          ]},
+          { $gt: [ { $size: "$paArr" }, 0 ] },
+          { $not: [
+              { $and: [
+                { $gt: [ { $size: "$paArr" }, 0 ] },
+                { $allElementsTrue: {
+                    $map: {
+                      input: "$paArr",
+                      as: "e",
+                      in: { $and: [
+                        { $eq: ["$$e.planId", "$exp.pendingApproval.planId"] },
+                        { $eq: ["$$e.verId",  "$exp.pendingApproval.verId"  ] }
+                      ]}
+                    }
+                } }
+              ] }
+          ] }
         ]
       }
   }},
@@ -126,7 +134,12 @@ db.lvl2.aggregate([
       _id: 0,
       proposalId: 1,
       versionMismatch: {
-        $or: ["$outlookMismatch", "$budgetMismatch", "$liveMismatch"]
+        $or: [
+          "$outlookMismatch",
+          "$budgetMismatch",
+          "$liveMismatch",
+          "$pendingApprovalMismatch"
+        ]
       }
   }}
 ], { allowDiskUse: true });
