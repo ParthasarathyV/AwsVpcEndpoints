@@ -1,7 +1,5 @@
 package com.jpmorgan.myig.service;
 
-import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.S3Object;
 import com.jpmorgan.myig.repository.CustomCostsRepository;
 import com.mongodb.client.model.InsertOneModel;
 import com.mongodb.client.model.WriteModel;
@@ -11,148 +9,185 @@ import org.apache.poi.openxml4j.opc.OPCPackage;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.xssf.eventusermodel.ReadOnlySharedStringsTable;
 import org.apache.poi.xssf.eventusermodel.XSSFReader;
+import org.apache.poi.xssf.eventusermodel.XSSFSheetXMLHandler;
 import org.apache.poi.xssf.model.StylesTable;
+import org.apache.poi.xssf.usermodel.XSSFComment;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
-import org.xml.sax.helpers.DefaultHandler;
 import org.xml.sax.helpers.XMLReaderFactory;
 
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Minimal Excel importer for a single-sheet XLSX/XLSM with 3 columns: ID, SNODE_ALIAS, NME.
+ * - Hardcoded target collection: "lookup"
+ * - API: handleXlsxImport(String type, String s3Link)
+ * - Deletes existing {type:<type>} and inserts new docs with the same type
+ * - S3 link is NOT implemented yet; always reads from local DEFAULT_LOCAL_PATH
+ */
 @Service
 @Slf4j
 public class XlsxImportHandler {
-
-    @Autowired
-    private AmazonS3 s3Client;
 
     @Autowired
     private CustomCostsRepository customCostsRepository;
 
     private static final int BATCH_SIZE = 1000;
     private static final String DEFAULT_LOCAL_PATH = "C:\\Users\\R751034\\Downloads\\bu.xlsx";
+    private static final String COLLECTION = "lookup";
 
-    public void handleXlsxImport(String dbName, String collectionName, String s3Link) {
-        try (InputStream in = resolveInputStream(s3Link)) {
-            Query deleteQuery = Query.query(Criteria.where("type").is("bu"));
-            DeleteResult deleteResult = customCostsRepository.remove(collectionName, deleteQuery);
-            log.info("Deleted {} existing documents with type 'bu'", deleteResult.getDeletedCount());
-            processWithSax(in, collectionName);
+    /**
+     * Entry point. Example: handleXlsxImport("bu", null)
+     */
+    public void handleXlsxImport(String type, String s3Link) {
+        log.info("Starting XLSX import. type={}, collection={}", type, COLLECTION);
+        try (InputStream in = resolveLocalInputStream(s3Link)) {
+            // 0) Delete existing documents for this type
+            Query deleteQuery = Query.query(Criteria.where("type").is(type));
+            DeleteResult del = customCostsRepository.remove(COLLECTION, deleteQuery);
+            log.info("Deleted {} existing documents with type '{}' in '{}'", del.getDeletedCount(), type, COLLECTION);
+
+            // 1) Parse single sheet and write in batches
+            processSingleSheet(in, type);
+            log.info("Import completed. type={}, collection={}", type, COLLECTION);
         } catch (Exception e) {
-            log.error("Error during XLSX import", e);
+            log.error("XLSX import failed. type=" + type + ", collection=" + COLLECTION, e);
         }
     }
 
-    private InputStream resolveInputStream(String s3Link) throws Exception {
-        if (s3Link != null && s3Link.startsWith("s3://")) {
-            String[] parts = s3Link.substring(5).split("/", 2);
-            return s3Client.getObject(parts[0], parts[1]).getObjectContent();
-        } else {
-            return new FileInputStream(DEFAULT_LOCAL_PATH);
+    /**
+     * S3 processing is NOT implemented yet. Always use local file.
+     */
+    private InputStream resolveLocalInputStream(String s3Link) throws Exception {
+        if (s3Link != null && !s3Link.isBlank()) {
+            log.warn("S3 link provided but not implemented yet ({}). Falling back to local file.", s3Link);
+        }
+        log.info("Reading local file: {}", DEFAULT_LOCAL_PATH);
+        return new FileInputStream(DEFAULT_LOCAL_PATH);
+    }
+
+    private void processSingleSheet(InputStream in, String type) throws Exception {
+        try (OPCPackage pkg = OPCPackage.open(in)) {
+            XSSFReader reader = new XSSFReader(pkg);
+            StylesTable styles = reader.getStylesTable();
+            ReadOnlySharedStringsTable strings = new ReadOnlySharedStringsTable(pkg);
+
+            // Minimal handler for 3 columns on a single sheet
+            BuSheetHandler handler = new BuSheetHandler(type);
+            DataFormatter formatter = new DataFormatter();
+            XSSFSheetXMLHandler sheetParser = new XSSFSheetXMLHandler(styles, null, strings, handler, formatter, false);
+
+            XMLReader parser = XMLReaderFactory.createXMLReader();
+            parser.setContentHandler(sheetParser);
+
+            Iterator<InputStream> sheets = reader.getSheetsData();
+            if (!sheets.hasNext()) {
+                log.warn("No sheets found in workbook");
+                return;
+            }
+            try (InputStream sheet1 = sheets.next()) {
+                parser.parse(new InputSource(sheet1));
+            }
+            if (sheets.hasNext()) {
+                log.warn("Multiple sheets detected; only Sheet 1 was processed.");
+            }
         }
     }
 
-    private void processWithSax(InputStream in, String collectionName) throws Exception {
-        OPCPackage pkg = OPCPackage.open(in);
-        XSSFReader reader = new XSSFReader(pkg);
-        StylesTable styles = reader.getStylesTable();
-        ReadOnlySharedStringsTable strings = new ReadOnlySharedStringsTable(pkg);
-
-        XMLReader parser = XMLReaderFactory.createXMLReader();
-        SheetHandler handler = new SheetHandler(strings, collectionName);
-        parser.setContentHandler(handler);
-
-        try (InputStream sheet = reader.getSheetsData().next()) {
-            parser.parse(new InputSource(sheet));
-        }
-    }
-
-    private class SheetHandler extends DefaultHandler {
-        private final ReadOnlySharedStringsTable sst;
+    /**
+     * Reads only columns A,B,C -> ID, SNODE_ALIAS, NME and writes batched inserts into the fixed collection.
+     */
+    private class BuSheetHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
+        private final String type;
         private final List<WriteModel<Document>> batch = new ArrayList<>();
-        private final String collectionName;
-        private final DataFormatter formatter = new DataFormatter();
 
-        private String currentCellValue;
-        private boolean isString;
-        private int colIndex = 0;
-        private List<String> rowValues = new ArrayList<>();
+        // Row state
+        private String id;
+        private String alias;
+        private String name;
 
-        public SheetHandler(ReadOnlySharedStringsTable sst, String collectionName) {
-            this.sst = sst;
-            this.collectionName = collectionName;
-        }
+        BuSheetHandler(String type) { this.type = type; }
+
+        @Override public void startRow(int rowNum) { id = alias = name = null; }
 
         @Override
-        public void startElement(String uri, String localName, String qName, Attributes attributes) {
-            if ("c".equals(qName)) {
-                isString = "s".equals(attributes.getValue("t"));
-                currentCellValue = "";
+        public void endRow(int rowNum) {
+            // Skip header row if present
+            if (rowNum == 0 && looksLikeHeader(id, alias, name)) return;
+            if (isBlank(id) && isBlank(alias) && isBlank(name)) return;
+            if (isBlank(id)) return; // require ID
+
+            Document value = new Document("name", safe(name));
+            List<String> sdmls = extractSdmls(safe(alias));
+            for (int i = 0; i < sdmls.size(); i++) value.append("sdml" + (i + 1), sdmls.get(i));
+
+            Document doc = new Document("type", type)
+                    .append("id", "S" + safe(id))
+                    .append("value", value);
+
+            batch.add(new InsertOneModel<>(doc));
+            if (batch.size() >= BATCH_SIZE) flushBatch();
+        }
+
+        @Override public void headerFooter(String text, boolean isHeader, String tag) { /* ignore */ }
+
+        @Override
+        public void cell(String cellRef, String formattedValue, XSSFComment comment) {
+            int col = columnIndex(cellRef);
+            switch (col) {
+                case 0 -> id = trim(formattedValue);    // A: ID
+                case 1 -> alias = trim(formattedValue); // B: SNODE_ALIAS
+                case 2 -> name = trim(formattedValue);  // C: NME
+                default -> { /* ignore */ }
             }
         }
 
-        @Override
-        public void characters(char[] ch, int start, int length) {
-            currentCellValue += new String(ch, start, length);
+        @Override public void endSheet() { flushBatch(); }
+
+        private void flushBatch() {
+            if (batch.isEmpty()) return;
+            customCostsRepository.bulkWrite(COLLECTION, new ArrayList<>(batch));
+            batch.clear();
         }
 
-        @Override
-        public void endElement(String uri, String localName, String qName) {
-            if ("v".equals(qName)) {
-                String value = isString ? sst.getItemAt(Integer.parseInt(currentCellValue)).getString() : currentCellValue;
-                rowValues.add(value.trim());
-                colIndex++;
-            }
-
-            if ("row".equals(qName)) {
-                if (rowValues.size() >= 3 && !"ID".equalsIgnoreCase(rowValues.get(0))) {
-                    String id = rowValues.get(0);
-                    String alias = rowValues.get(1);
-                    String name = rowValues.get(2);
-
-                    Document doc = new Document("type", "bu")
-                            .append("id", "S" + id)
-                            .append("value", new Document("name", name));
-
-                    List<String> sdmls = extractSdmls(alias);
-                    for (int i = 0; i < sdmls.size(); i++) {
-                        doc.get("value", Document.class).append("sdml" + (i + 1), sdmls.get(i));
-                    }
-
-                    batch.add(new InsertOneModel<>(doc));
-                    if (batch.size() == BATCH_SIZE) {
-                        customCostsRepository.bulkWrite(collectionName, new ArrayList<>(batch));
-                        batch.clear();
-                    }
-                }
-                rowValues.clear();
-                colIndex = 0;
-            }
-        }
-
-        @Override
-        public void endDocument() {
-            if (!batch.isEmpty()) {
-                customCostsRepository.bulkWrite(collectionName, batch);
-                log.info("Final batch write complete. Total documents written: {}", batch.size());
-            }
+        private boolean looksLikeHeader(String id, String alias, String name) {
+            return equalsIgnoreCase(id, "ID") || equalsIgnoreCase(alias, "SNODE_ALIAS") || equalsIgnoreCase(name, "NME");
         }
 
         private List<String> extractSdmls(String alias) {
             List<String> result = new ArrayList<>();
-            Matcher matcher = Pattern.compile("S\\d+-[^<]+?").matcher(alias);
-            while (matcher.find()) result.add(matcher.group().trim());
+            if (alias == null) return result;
+            Matcher m = Pattern.compile("S\\d+-[^<]+").matcher(alias);
+            while (m.find()) result.add(m.group().trim());
             return result;
         }
+
+        private int columnIndex(String cellRef) {
+            // Convert cell ref like "A1" -> 0, "B1" -> 1, "AA1" -> 26
+            int idx = 0;
+            for (int i = 0; i < cellRef.length(); i++) {
+                char ch = cellRef.charAt(i);
+                if (ch >= 'A' && ch <= 'Z') idx = idx * 26 + (ch - 'A' + 1);
+                else if (ch >= 'a' && ch <= 'z') idx = idx * 26 + (ch - 'a' + 1);
+                else break; // digits reached
+            }
+            return idx - 1;
+        }
+
+        private boolean isBlank(String s) { return s == null || s.trim().isEmpty(); }
+        private String trim(String s) { return s == null ? null : s.trim(); }
+        private boolean equalsIgnoreCase(String a, String b) { return a != null && a.equalsIgnoreCase(b); }
+        private String safe(String s) { return s == null ? "" : s; }
     }
 }
