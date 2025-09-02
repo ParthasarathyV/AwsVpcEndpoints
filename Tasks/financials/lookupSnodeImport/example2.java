@@ -21,8 +21,9 @@ import org.xml.sax.InputSource;
 import org.xml.sax.XMLReader;
 import org.xml.sax.helpers.XMLReaderFactory;
 
-import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -32,9 +33,9 @@ import java.util.regex.Pattern;
 /**
  * Minimal Excel importer for a single-sheet XLSX/XLSM with 3 columns: ID, SNODE_ALIAS, NME.
  * - Hardcoded target collection: "lookup"
- * - API: handleXlsxImport(String type, String s3Link)
- * - Deletes existing {type:<type>} and inserts new docs with the same type
- * - S3 link is NOT implemented yet; always reads from local DEFAULT_LOCAL_PATH
+ * - API: handleXlsxImport(String type, String s3Link)  [S3 not implemented yet]
+ * - Deletes existing {type:<type>} then inserts new docs (batched)
+ * - Uses POI 5.x event API (XSSFSheetXMLHandler) and opens by PATH (not InputStream) to avoid large in-memory buffers.
  */
 @Service
 @Slf4j
@@ -44,68 +45,62 @@ public class XlsxImportHandler {
     private CustomCostsRepository customCostsRepository;
 
     private static final int BATCH_SIZE = 1000;
-    private static final String DEFAULT_LOCAL_PATH = "C:\Users\R751034\Downloads\bu.xlsx";
+    private static final Path DEFAULT_LOCAL_PATH = Paths.get("C:/Users/R751034/Downloads/bu.xlsx");
     private static final String COLLECTION = "lookup";
 
-    /**
-     * Entry point. Example: handleXlsxImport("bu", null)
-     */
+    /** Entry point. Example: handleXlsxImport("bu", null) */
     public void handleXlsxImport(String type, String s3Link) {
         log.info("Starting XLSX import. type={}, collection={}", type, COLLECTION);
-        try (InputStream in = resolveLocalInputStream(s3Link)) {
+        try {
+            if (s3Link != null && !s3Link.isBlank()) {
+                log.warn("S3 link provided but not implemented yet ({}). Proceeding with local file.", s3Link);
+            }
+
             // 0) Delete existing documents for this type
             Query deleteQuery = Query.query(Criteria.where("type").is(type));
             DeleteResult del = customCostsRepository.remove(COLLECTION, deleteQuery);
             log.info("Deleted {} existing documents with type '{}' in '{}'", del.getDeletedCount(), type, COLLECTION);
 
-            // 1) Parse single sheet and write in batches
-            processSingleSheet(in, type);
+            // 1) Parse the single sheet from local PATH (not InputStream)
+            processSingleSheet(DEFAULT_LOCAL_PATH, type);
+
             log.info("Import completed. type={}, collection={}", type, COLLECTION);
         } catch (Exception e) {
             log.error("XLSX import failed. type=" + type + ", collection=" + COLLECTION, e);
         }
     }
 
-    /**
-     * S3 processing is NOT implemented yet. Always use local file.
-     */
-    private InputStream resolveLocalInputStream(String s3Link) throws Exception {
-        if (s3Link != null && !s3Link.isBlank()) {
-            log.warn("S3 link provided but not implemented yet ({}). Falling back to local file.", s3Link);
-        }
-        log.info("Reading local file: {}", DEFAULT_LOCAL_PATH);
-        return new FileInputStream(DEFAULT_LOCAL_PATH);
-    }
-
-    private void processSingleSheet(InputStream in, String type) throws Exception {
-        try (OPCPackage pkg = OPCPackage.open(in)) {
+    private void processSingleSheet(Path filePath, String type) throws Exception {
+        // Opening by Path avoids POI's IOUtils byte-array cap (no full in-memory ZIP entry buffering)
+        try (OPCPackage pkg = OPCPackage.open(filePath.toFile())) {
             XSSFReader reader = new XSSFReader(pkg);
             StylesTable styles = reader.getStylesTable();
             ReadOnlySharedStringsTable strings = new ReadOnlySharedStringsTable(pkg);
 
-            // Minimal handler for 3 columns on a single sheet
             BuSheetHandler handler = new BuSheetHandler(type);
             DataFormatter formatter = new DataFormatter();
-            XSSFSheetXMLHandler sheetParser = new XSSFSheetXMLHandler(styles, null, strings, handler, formatter, false);
+            XSSFSheetXMLHandler sheetParser =
+                    new XSSFSheetXMLHandler(styles, null, strings, handler, formatter, false);
 
             XMLReader parser = XMLReaderFactory.createXMLReader();
             parser.setContentHandler(sheetParser);
 
             Iterator<InputStream> sheets = reader.getSheetsData();
             if (!sheets.hasNext()) {
-                log.warn("No sheets found in workbook");
+                log.warn("No sheets found in workbook: {}", filePath);
                 return;
             }
-            try (InputStream sheet1 = sheets.next()) {\n                parser.parse(new InputSource(sheet1));\n                handler.flushRemaining();\n                // ensure any remaining docs are written\n                handler.flushRemaining();\n            }
+            try (InputStream sheet1 = sheets.next()) {
+                parser.parse(new InputSource(sheet1));
+                handler.flushRemaining(); // ensure trailing partial batch is written
+            }
             if (sheets.hasNext()) {
                 log.warn("Multiple sheets detected; only Sheet 1 was processed.");
             }
         }
     }
 
-    /**
-     * Reads only columns A,B,C -> ID, SNODE_ALIAS, NME and writes batched inserts into the fixed collection.
-     */
+    /** Reads only A,B,C -> ID, SNODE_ALIAS, NME and writes batched inserts into the fixed collection. */
     private class BuSheetHandler implements XSSFSheetXMLHandler.SheetContentsHandler {
         private final String type;
         private final List<WriteModel<Document>> batch = new ArrayList<>();
@@ -115,7 +110,7 @@ public class XlsxImportHandler {
         private String alias;
         private String name;
 
-        BuSheetHandler(String type) { this.type = type; }\n\n        void flushRemaining() { flushBatch(); }\n\n        void flushRemaining() { flushBatch(); }
+        BuSheetHandler(String type) { this.type = type; }
 
         @Override public void startRow(int rowNum) { id = alias = name = null; }
 
@@ -151,7 +146,7 @@ public class XlsxImportHandler {
             }
         }
 
-        
+        void flushRemaining() { flushBatch(); }
 
         private void flushBatch() {
             if (batch.isEmpty()) return;
@@ -166,7 +161,7 @@ public class XlsxImportHandler {
         private List<String> extractSdmls(String alias) {
             List<String> result = new ArrayList<>();
             if (alias == null) return result;
-            Matcher m = Pattern.compile("S\d+-[^<]+").matcher(alias);
+            Matcher m = Pattern.compile("S\\d+-[^<]+").matcher(alias);
             while (m.find()) result.add(m.group().trim());
             return result;
         }
