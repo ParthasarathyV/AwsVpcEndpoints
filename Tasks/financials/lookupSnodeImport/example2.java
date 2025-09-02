@@ -44,7 +44,7 @@ public class XlsxImportHandler {
     private CustomCostsRepository customCostsRepository;
 
     private static final int BATCH_SIZE = 1000;
-    private static final String DEFAULT_LOCAL_PATH = "C:\\Users\\R751034\\Downloads\\bu.xlsx";
+    private static final String DEFAULT_LOCAL_PATH = "C:\Users\R751034\Downloads\bu.xlsx";
     private static final String COLLECTION = "lookup";
 
     /**
@@ -96,9 +96,7 @@ public class XlsxImportHandler {
                 log.warn("No sheets found in workbook");
                 return;
             }
-            try (InputStream sheet1 = sheets.next()) {
-                parser.parse(new InputSource(sheet1));
-            }
+            try (InputStream sheet1 = sheets.next()) {\n                parser.parse(new InputSource(sheet1));\n                handler.flushRemaining();\n                // ensure any remaining docs are written\n                handler.flushRemaining();\n            }
             if (sheets.hasNext()) {
                 log.warn("Multiple sheets detected; only Sheet 1 was processed.");
             }
@@ -117,7 +115,7 @@ public class XlsxImportHandler {
         private String alias;
         private String name;
 
-        BuSheetHandler(String type) { this.type = type; }
+        BuSheetHandler(String type) { this.type = type; }\n\n        void flushRemaining() { flushBatch(); }\n\n        void flushRemaining() { flushBatch(); }
 
         @Override public void startRow(int rowNum) { id = alias = name = null; }
 
@@ -153,7 +151,7 @@ public class XlsxImportHandler {
             }
         }
 
-        @Override public void endSheet() { flushBatch(); }
+        
 
         private void flushBatch() {
             if (batch.isEmpty()) return;
@@ -168,7 +166,7 @@ public class XlsxImportHandler {
         private List<String> extractSdmls(String alias) {
             List<String> result = new ArrayList<>();
             if (alias == null) return result;
-            Matcher m = Pattern.compile("S\\d+-[^<]+").matcher(alias);
+            Matcher m = Pattern.compile("S\d+-[^<]+").matcher(alias);
             while (m.find()) result.add(m.group().trim());
             return result;
         }
