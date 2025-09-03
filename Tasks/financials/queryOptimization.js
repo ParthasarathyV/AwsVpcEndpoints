@@ -1,9 +1,22 @@
-const l1OrgId = "20022"; // change to your L1 orgId
-
 db.orgs.aggregate([
-  { $match: { level: 1, orgId: l1OrgId } },
+  // Work on all Level-1 roots that are active
+  { $match: { level: 1, active: "Y" } },
 
-  // Pull the whole subtree in one shot
+  // Keep only what we need from the root going forward
+  { $project: { _id: 0, orgId: 1, name: 1, level: 1 } },
+
+  /*
+   * $graphLookup recursively walks the same collection to collect descendants.
+   * - from:           collection to search (same as the current one)
+   * - startWith:      value(s) to begin traversal with (here: this L1's orgId)
+   * - connectFromField: field on each found doc whose value we follow outward
+   * - connectToField:   field on candidate docs that must equal connectFromField
+   *                     (classic parent/child: child's parentId == parent's orgId)
+   * - as:             array field to store all matched descendants
+   * - depthField:     adds 0 for direct children, 1 for grandchildren, etc.
+   *
+   * Note: per your requirement, we DO NOT filter descendants by active:Y here.
+   */
   {
     $graphLookup: {
       from: "orgs",
@@ -11,13 +24,11 @@ db.orgs.aggregate([
       connectFromField: "orgId",
       connectToField: "parentId",
       as: "desc",
-      depthField: "depth",
-      // Optional filters to keep it lean
-      restrictSearchWithMatch: { active: "Y" }
+      depthField: "depth"
     }
   },
 
-  // Shape it into L2 array, each with its L3 children
+  // Build L2 array; for each L2, attach its L3 array. Project minimal fields.
   {
     $set: {
       l2OwningOrganizations: {
@@ -57,5 +68,6 @@ db.orgs.aggregate([
     }
   },
 
-  { $project: { desc: 0 } }
+  // Return only the root fields you care about plus the computed arrays
+  { $project: { level: 0, desc: 0 } } // drop temp fields
 ]).pretty();
