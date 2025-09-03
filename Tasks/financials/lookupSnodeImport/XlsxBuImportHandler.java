@@ -32,7 +32,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -56,8 +55,7 @@ public class XlsxBuImportHandler {
     private static final int QUEUE_CAPACITY = 50_000;           // backpressure buffer
     private static final int WORKERS = Math.max(2, Runtime.getRuntime().availableProcessors());
 
-    private static final Pattern SDML_PATTERN = Pattern.compile("S\\d+-[^<]+");
-
+    
     // For local testing without multipart
     private static final Path DEFAULT_LOCAL_PATH = Paths.get("C:/Users/R751034/Downloads/bu.xlsx");
 
@@ -273,11 +271,14 @@ public class XlsxBuImportHandler {
     private static boolean looksLikeHeader(String id, String alias, String name) {
         return eq(id, "ID") || eq(alias, "SNODE_ALIAS") || eq(name, "NME");
     }
-    private static boolean isBlank(String s){ return s == null || s.trim().isEmpty(); }
+    private static boolean isBlank(String s){ return s == null || s.isEmpty(); }
     private static boolean eq(String a,String b){ return a!=null && a.equalsIgnoreCase(b); }
     private static int columnIndex(String ref){ int idx=0; for(int i=0;i<ref.length();i++){ char ch=ref.charAt(i); if(ch>='A'&&ch<='Z') idx=idx*26+(ch-'A'+1); else if(ch>='a'&&ch<='z') idx=idx*26+(ch-'a'+1); else break; } return idx-1; }
     private static long msSince(Instant start){ return Duration.between(start, Instant.now()).toMillis(); }
-    private static List<String> extractSdmls(String alias){ List<String> out = new ArrayList<>(); if(alias==null) return out; Matcher m = SDML_PATTERN.matcher(alias); while(m.find()) out.add(m.group().trim()); return out; }
+    private static List<String> extractSdmls(String alias){
+            if (alias == null) return Collections.emptyList();
+            return Arrays.asList(alias.split(Pattern.quote("<-->"), -1));
+        }
 
     private static class Metrics {
         Instant start;
