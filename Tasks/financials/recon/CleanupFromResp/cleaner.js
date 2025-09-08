@@ -1,20 +1,21 @@
-// cleaner.js — run inside mongosh with:  load('cleaner.js')
+// cleaner.js — run with: load('cleaner.js')
 const fs = require("fs");
 
-/* ======= CONFIG (edit these) ======= */
-const JSON_FILE = "H:/textFiles/9.8.25/reconResponse.json"; // hardcoded file path
-const DRY_RUN   = true; // true = only print ops, false = execute
+/* ======= CONFIG ======= */
+const JSON_FILE = "H:/textFiles/9.8.25/reconResponse.json"; // change path
+const DRY_RUN   = true;  // true => only print ops
 
-/* ======= scenario → collection suffix ======= */
+/* ======= scenario → collection suffix (for L3/L4) ======= */
+// pending_approval shares the Live collections
 const SCENARIO_MAP = {
   outlook: "Outlook",
   budget: "Budget",
   live: "Live",
-  pending_approval: "Live", // treat pending_approval as Live collections
+  pending_approval: "Live",
   working: "Working",
 };
 
-/* ========== helpers ========== */
+/* ======= helpers ======= */
 function readInput(filePath) {
   const text = fs.readFileSync(filePath, "utf8");
   return JSON.parse(text);
@@ -33,9 +34,14 @@ function coll4Name(scenario) {
   if (!suff) throw new Error(`Unknown scenario: ${scenario}`);
   return `lvl4CostDetails${suff}`;
 }
+
+/* Field used in lvl1/lvl2 for each scenario */
 function fieldNameForL1L2(scenario) {
-  return String(scenario).toLowerCase() === "pending_approval" ? "live" : String(scenario);
+  const s = String(scenario).toLowerCase();
+  if (s === "pending_approval") return "pendingApproval"; // per your document shape
+  return s; // outlook → 'outlook', live → 'live', budget → 'budget', working → 'working'
 }
+
 function setScenarioFieldNull(collectionName, proposalId, scenario) {
   const field = fieldNameForL1L2(scenario);
   const update = { $set: { [field]: null } };
@@ -53,16 +59,11 @@ function deleteMany(collectionName, filter) {
   return db.getCollection(collectionName).deleteMany(filter);
 }
 
-/* ========== main ========== */
+/* ======= main ======= */
 (function main() {
   let input;
-  try {
-    input = readInput(JSON_FILE);
-  } catch (e) {
-    console.log(`Failed to read/parse JSON: ${JSON_FILE}`);
-    console.log(String(e));
-    return;
-  }
+  try { input = readInput(JSON_FILE); }
+  catch (e) { console.log(`Failed to read/parse JSON: ${JSON_FILE}\n${String(e)}`); return; }
 
   const stats = { file: JSON_FILE, DRY_RUN, elementsSeen: 0, l1Updates: 0, l2Updates: 0, l3Deletes: 0, l4Deletes: 0 };
 
@@ -82,33 +83,33 @@ function deleteMany(collectionName, filter) {
       const l3VersionIds = Array.isArray(el.l3VersionIds) ? [...el.l3VersionIds] : [];
 
       if (!proposalId || !planId || !scenario) {
-        console.log(`Skipping element (missing keys). Element=${JSON.stringify(el)}`);
+        console.log(`Skipping element (missing keys): ${JSON.stringify({ proposalId, planId, scenario })}`);
         continue;
       }
 
       const lvl3 = coll3Name(scenario);
       const lvl4 = coll4Name(scenario);
 
-      // Case 1: gosVersionId is null
+      // Case 1: gosVersionId is null → null out lvl1/lvl2 field, delete lvl3/lvl4 by key
       if (gosVersionId === null) {
         const r1 = setScenarioFieldNull("lvl1FinancialsSummary", proposalId, scenario);
         const r2 = setScenarioFieldNull("lvl2FinancialsSummary", proposalId, scenario);
         stats.l1Updates += (r1.modifiedCount || 0);
         stats.l2Updates += (r2.modifiedCount || 0);
 
-        const baseFilter = { proposalId, planId, scenario };
-        const d3 = deleteMany(lvl3, baseFilter);
-        const d4 = deleteMany(lvl4, baseFilter);
+        const base = { proposalId, planId, scenario };
+        const d3 = deleteMany(lvl3, base);
+        const d4 = deleteMany(lvl4, base);
         stats.l3Deletes += (d3.deletedCount || 0);
         stats.l4Deletes += (d4.deletedCount || 0);
 
-        console.log(`Handled gosVersionId=null for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
+        console.log(`gosVersionId=null handled for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
       }
 
-      // Case 2: l3ToL4Recon is false
+      // Case 2: l3ToL4Recon is false → delete lvl3 by l3VersionId (excluding l4VersionId)
       if (l3ToL4Recon === false) {
         if (!l4VersionId) {
-          console.log(`l3ToL4Recon=false but l4VersionId missing (proposalId=${proposalId}, planId=${planId}, scenario=${scenario})`);
+          console.log(`l3ToL4Recon=false but missing l4VersionId (proposalId=${proposalId}, planId=${planId}, scenario=${scenario})`);
         } else {
           const idsToDelete = l3VersionIds.filter(v => v !== l4VersionId);
           if (idsToDelete.length > 0) {
@@ -117,7 +118,7 @@ function deleteMany(collectionName, filter) {
             stats.l3Deletes += (d3.deletedCount || 0);
             console.log(`Recon=false: delete from ${lvl3} where ${JSON.stringify(filter)}`);
           } else {
-            console.log(`Recon=false: nothing to delete in ${lvl3} after removing l4VersionId`);
+            console.log(`Recon=false: no L3 IDs to delete after excluding l4VersionId`);
           }
         }
       }
