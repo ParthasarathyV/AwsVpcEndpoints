@@ -3,11 +3,11 @@ const fs = require("fs");
 
 /* ======= CONFIG ======= */
 const JSON_FILE = "H:/textFiles/9.8.25/reconResponse.json"; // change path
-const DRY_RUN   = true;   // true => only print ops, false => actually run
+const DRY_RUN   = false;   // true => only print ops, false => actually run
 
-// Toggle specific handlers
-const handleGosVersion   = true;  // process gosVersionId=null
-const handleL3ToL4Recon  = true;  // process l3ToL4Recon=false
+// Toggles
+const handleGosVersion   = true;
+const handleL3ToL4Recon  = true;
 
 /* ======= scenario → collection suffix (for L3/L4) ======= */
 const SCENARIO_MAP = {
@@ -28,34 +28,32 @@ function scenarioSuffix(s) {
   return SCENARIO_MAP[key] || (key ? key[0].toUpperCase() + key.slice(1) : null);
 }
 function coll3Name(scenario) {
-  const suff = scenarioSuffix(scenario);
-  if (!suff) throw new Error(`Unknown scenario: ${scenario}`);
-  return `lvl3CostDetails${suff}`;
+  return `lvl3CostDetails${scenarioSuffix(scenario)}`;
 }
 function coll4Name(scenario) {
-  const suff = scenarioSuffix(scenario);
-  if (!suff) throw new Error(`Unknown scenario: ${scenario}`);
-  return `lvl4CostDetails${suff}`;
+  return `lvl4CostDetails${scenarioSuffix(scenario)}`;
 }
 function fieldNameForL1L2(scenario) {
   const s = String(scenario).toLowerCase();
-  if (s === "pending_approval") return "pendingApproval"; // field name in lvl1/lvl2
+  if (s === "pending_approval") return "pendingApproval"; 
   return s;
 }
+
+// Always print the command string, execute if DRY_RUN=false
 function setScenarioFieldNull(collectionName, proposalId, scenario) {
   const field = fieldNameForL1L2(scenario);
   const update = { $set: { [field]: null } };
-  if (DRY_RUN) {
-    console.log(`[DRY] ${collectionName}.updateOne(${JSON.stringify({ proposalId })}, ${JSON.stringify(update)})`);
-    return { matchedCount: 0, modifiedCount: 0 };
-  }
+  const cmd = `${collectionName}.updateOne(${JSON.stringify({ proposalId })}, ${JSON.stringify(update)})`;
+  console.log(cmd);
+
+  if (DRY_RUN) return { matchedCount: 0, modifiedCount: 0 };
   return db.getCollection(collectionName).updateOne({ proposalId }, update);
 }
 function deleteMany(collectionName, filter) {
-  if (DRY_RUN) {
-    console.log(`[DRY] ${collectionName}.deleteMany(${JSON.stringify(filter)})`);
-    return { deletedCount: 0 };
-  }
+  const cmd = `${collectionName}.deleteMany(${JSON.stringify(filter)})`;
+  console.log(cmd);
+
+  if (DRY_RUN) return { deletedCount: 0 };
   return db.getCollection(collectionName).deleteMany(filter);
 }
 
@@ -66,15 +64,9 @@ function deleteMany(collectionName, filter) {
   catch (e) { console.log(`Failed to read/parse JSON: ${JSON_FILE}\n${String(e)}`); return; }
 
   const stats = { 
-    file: JSON_FILE, 
-    DRY_RUN, 
-    handleGosVersion, 
-    handleL3ToL4Recon,
-    elementsSeen: 0, 
-    l1Updates: 0, 
-    l2Updates: 0, 
-    l3Deletes: 0, 
-    l4Deletes: 0 
+    file: JSON_FILE, DRY_RUN,
+    handleGosVersion, handleL3ToL4Recon,
+    elementsSeen: 0, l1Updates: 0, l2Updates: 0, l3Deletes: 0, l4Deletes: 0 
   };
 
   for (const bucketKey of Object.keys(input)) {
@@ -92,7 +84,6 @@ function deleteMany(collectionName, filter) {
       const l4VersionId  = el.l4VersionId;
       const l3VersionIds = Array.isArray(el.l3VersionIds) ? [...el.l3VersionIds] : [];
 
-      // ---- Print basic info for this record ----
       console.log(`\n--- Processing Record ---`);
       console.log(`proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
 
@@ -130,7 +121,7 @@ function deleteMany(collectionName, filter) {
             const filter = { proposalId, planId, scenario, l3VersionId: { $in: idsToDelete } };
             const d3 = deleteMany(lvl3, filter);
             stats.l3Deletes += (d3.deletedCount || 0);
-            console.log(`Recon=false: delete from ${lvl3} with l3VersionIds=${JSON.stringify(idsToDelete)}`);
+            console.log(`Recon=false handled`);
           } else {
             console.log(`Recon=false: no L3 IDs left to delete`);
           }
