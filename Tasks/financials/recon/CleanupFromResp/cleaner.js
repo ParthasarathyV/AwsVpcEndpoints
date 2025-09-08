@@ -3,7 +3,11 @@ const fs = require("fs");
 
 /* ======= CONFIG ======= */
 const JSON_FILE = "H:/textFiles/9.8.25/reconResponse.json"; // change path
-const DRY_RUN   = true;  // true => only print ops, false => actually run
+const DRY_RUN   = true;   // true => only print ops, false => actually run
+
+// Toggle specific handlers
+const handleGosVersion   = true;  // process gosVersionId=null
+const handleL3ToL4Recon  = true;  // process l3ToL4Recon=false
 
 /* ======= scenario → collection suffix (for L3/L4) ======= */
 const SCENARIO_MAP = {
@@ -61,7 +65,17 @@ function deleteMany(collectionName, filter) {
   try { input = readInput(JSON_FILE); }
   catch (e) { console.log(`Failed to read/parse JSON: ${JSON_FILE}\n${String(e)}`); return; }
 
-  const stats = { file: JSON_FILE, DRY_RUN, elementsSeen: 0, l1Updates: 0, l2Updates: 0, l3Deletes: 0, l4Deletes: 0 };
+  const stats = { 
+    file: JSON_FILE, 
+    DRY_RUN, 
+    handleGosVersion, 
+    handleL3ToL4Recon,
+    elementsSeen: 0, 
+    l1Updates: 0, 
+    l2Updates: 0, 
+    l3Deletes: 0, 
+    l4Deletes: 0 
+  };
 
   for (const bucketKey of Object.keys(input)) {
     const arr = input[bucketKey];
@@ -91,7 +105,7 @@ function deleteMany(collectionName, filter) {
       const lvl4 = coll4Name(scenario);
 
       // Case 1: gosVersionId is null
-      if (gosVersionId === null) {
+      if (handleGosVersion && gosVersionId === null) {
         const r1 = setScenarioFieldNull("lvl1FinancialsSummary", proposalId, scenario);
         const r2 = setScenarioFieldNull("lvl2FinancialsSummary", proposalId, scenario);
         stats.l1Updates += (r1.modifiedCount || 0);
@@ -107,7 +121,7 @@ function deleteMany(collectionName, filter) {
       }
 
       // Case 2: l3ToL4Recon is false
-      if (l3ToL4Recon === false) {
+      if (handleL3ToL4Recon && l3ToL4Recon === false) {
         if (!l4VersionId) {
           console.log(`l3ToL4Recon=false but missing l4VersionId`);
         } else {
