@@ -1,49 +1,35 @@
-/**
- * run with:  mongosh --file script.js
- * or:        mongosh
- *            > load('script.js')
- *
- * Put your JSON either in INLINE_JSON below or provide a path in JSON_FILE.
- * The expected JSON shape matches your screenshot: an object whose keys are
- * proposalId-like strings and values are arrays of elements with fields like:
- * { proposalId, planId, scenario, gosVersionId, l3ToL4Recon, l4VersionId, l3VersionIds, ... }
- */
+// cleaner.js
+// Run in mongosh:  mongosh yourDbName --file cleaner.js
+
+const fs = require("fs");
 
 /* ===================== CONFIG ===================== */
 
-// Option A: paste JSON right here (keep it an object literal or JSON.parse string)
-const INLINE_JSON = null; // e.g. { "f88a8...": [ { ... }, { ... } ], "8d43f...":[ ... ] }
+// Path to your input JSON file
+const JSON_FILE = "H:/textFiles/9.8.25/reconResponse.json";
 
-// Option B: path to a .json file (comment if unused)
-const JSON_FILE = null; // e.g. '/path/to/data.json'
-
-// Safety: dry run first (true = only log what would happen)
-const DRY_RUN = false;
+// Safety: dry run first (true = only log the ops)
+const DRY_RUN = true;
 
 /* ===== scenario → collection-suffix mapping (normalize names) ===== */
 const SCENARIO_MAP = {
   outlook: "Outlook",
   budget: "Budget",
   live: "Live",
+  pending_approval: "Live",   // treat pending_approval as Live
   working: "Working",
-  pending_approval: "PendingApproval",
 };
 
 /* ===================== HELPERS ===================== */
 
 function readInput() {
-  if (INLINE_JSON && typeof INLINE_JSON === 'object') return INLINE_JSON;
-  if (JSON_FILE) {
-    try {
-      // mongosh provides cat() helper in most environments
-      const text = cat(JSON_FILE);
-      return JSON.parse(text);
-    } catch (e) {
-      print(`Failed to read/parse JSON_FILE: ${JSON_FILE}`);
-      throw e;
-    }
+  try {
+    const text = fs.readFileSync(JSON_FILE, "utf8");
+    return JSON.parse(text);
+  } catch (e) {
+    console.log(`Failed to read/parse JSON_FILE: ${JSON_FILE}`);
+    throw e;
   }
-  throw new Error("No input provided. Set INLINE_JSON or JSON_FILE.");
 }
 
 function scenarioSuffix(s) {
@@ -65,10 +51,10 @@ function coll4Name(scenario) {
 }
 
 function setScenarioFieldNull(collectionName, proposalId, scenario) {
-  const field = String(scenario);
+  const field = String(scenario).toLowerCase() === "pending_approval" ? "live" : scenario;
   const update = { $set: { [field]: null } };
   if (DRY_RUN) {
-    print(`[DRY] ${collectionName}.updateOne({proposalId: "${proposalId}"}, ${tojson(update)})`);
+    console.log(`[DRY] ${collectionName}.updateOne({proposalId: "${proposalId}"}, ${tojson(update)})`);
     return { matchedCount: 0, modifiedCount: 0 };
   }
   return db.getCollection(collectionName).updateOne({ proposalId }, update);
@@ -76,7 +62,7 @@ function setScenarioFieldNull(collectionName, proposalId, scenario) {
 
 function deleteByKey(collectionName, filter) {
   if (DRY_RUN) {
-    print(`[DRY] ${collectionName}.deleteMany(${tojson(filter)})`);
+    console.log(`[DRY] ${collectionName}.deleteMany(${tojson(filter)})`);
     return { deletedCount: 0 };
   }
   return db.getCollection(collectionName).deleteMany(filter);
@@ -87,7 +73,6 @@ function deleteByKey(collectionName, filter) {
 (function main() {
   const input = readInput();
 
-  // Stats
   let stats = {
     l1Updates: 0,
     l2Updates: 0,
@@ -96,7 +81,6 @@ function deleteByKey(collectionName, filter) {
     elementsSeen: 0
   };
 
-  // Iterate top-level keys (proposal buckets)
   for (const bucketKey of Object.keys(input)) {
     const arr = input[bucketKey];
     if (!Array.isArray(arr)) continue;
@@ -104,64 +88,57 @@ function deleteByKey(collectionName, filter) {
     for (const el of arr) {
       stats.elementsSeen++;
 
-      const proposalId = el.proposalId || el.proposalID || el.proposal_Id || bucketKey;
+      const proposalId = el.proposalId || bucketKey;
       const planId     = el.planId;
       const scenario   = el.scenario;
-      const gosVersionId = el.gosVersionId ?? el.gosVersionID ?? null;
+      const gosVersionId = el.gosVersionId ?? null;
       const l3ToL4Recon = el.l3ToL4Recon;
       const l4VersionId = el.l4VersionId;
       const l3VersionIds = Array.isArray(el.l3VersionIds) ? el.l3VersionIds.slice() : [];
 
       if (!proposalId || !planId || !scenario) {
-        print(`Skipping element due to missing keys. proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
+        console.log(`Skipping element missing keys. proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
         continue;
       }
 
       const lvl3 = coll3Name(scenario);
       const lvl4 = coll4Name(scenario);
 
-      /* ---------- Case 1: gosVersionId is null ---------- */
+      // Case 1: gosVersionId is null
       if (gosVersionId === null) {
-        // set scenario field to null on lvl1 & lvl2
         const r1 = setScenarioFieldNull("lvl1FinancialsSummary", proposalId, scenario);
         const r2 = setScenarioFieldNull("lvl2FinancialsSummary", proposalId, scenario);
         stats.l1Updates += (r1.modifiedCount || 0);
         stats.l2Updates += (r2.modifiedCount || 0);
 
-        // delete lvl3/lvl4 by (proposalId, planId, scenario)
         const baseFilter = { proposalId, planId, scenario };
         const d3 = deleteByKey(lvl3, baseFilter);
         const d4 = deleteByKey(lvl4, baseFilter);
         stats.l3Deletes += (d3.deletedCount || 0);
         stats.l4Deletes += (d4.deletedCount || 0);
 
-        print(`Handled gosVersionId=null for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
+        console.log(`Handled gosVersionId=null for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
       }
 
-      /* ---------- Case 2: l3ToL4Recon is false ---------- */
+      // Case 2: l3ToL4Recon is false
       if (l3ToL4Recon === false) {
         if (!l4VersionId) {
-          print(`l3ToL4Recon=false but l4VersionId missing for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
+          console.log(`l3ToL4Recon=false but no l4VersionId for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
         } else {
-          // remove l4VersionId from L3 ids and delete those L3 docs that remain
           const idsToDelete = l3VersionIds.filter(v => v !== l4VersionId);
           if (idsToDelete.length > 0) {
             const filter = { proposalId, planId, scenario, l3VersionId: { $in: idsToDelete } };
             const d3 = deleteByKey(lvl3, filter);
             stats.l3Deletes += (d3.deletedCount || 0);
 
-            print(`Recon=false: deleted ${d3.deletedCount || 0} from ${lvl3} for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}, l3VersionId in ${tojson(idsToDelete)}`);
-          } else {
-            print(`Recon=false: nothing to delete in ${lvl3} (only l4VersionId present) for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
+            console.log(`Recon=false: deleted ${d3.deletedCount || 0} from ${lvl3} for proposalId=${proposalId}, planId=${planId}, scenario=${scenario}, l3VersionIds=${tojson(idsToDelete)}`);
           }
         }
       }
     }
   }
 
-  print("\n==== SUMMARY ====");
-  printjson(stats);
-  if (DRY_RUN) {
-    print("DRY_RUN was enabled. Re-run with DRY_RUN=false to apply changes.");
-  }
+  console.log("\n==== SUMMARY ====");
+  console.log(JSON.stringify(stats, null, 2));
+  if (DRY_RUN) console.log("DRY_RUN is ON. No real changes were made.");
 })();
