@@ -8,7 +8,6 @@ const handleGosVersion  = true;  // process gosVersionId === null
 const handleL3ToL4Recon = true;  // process l3ToL4Recon === false
 
 /* ======= scenario → collection suffix (for L3/L4) ======= */
-/* pending_approval is stored in Live collections */
 const SCENARIO_MAP = {
   outlook: "Outlook",
   budget:  "Budget",
@@ -29,26 +28,27 @@ function scenarioSuffix(s) {
 function coll3Name(scenario) { return `lvl3CostDetails${scenarioSuffix(scenario)}`; }
 function coll4Name(scenario) { return `lvl4CostDetails${scenarioSuffix(scenario)}`; }
 
-/* lvl1/lvl2 field name: pending_approval -> 'pendingApproval' */
 function fieldNameForL1L2(scenario) {
   const s = String(scenario).toLowerCase();
   return s === "pending_approval" ? "pendingApproval" : s;
 }
 
-/* Always print the command; execute if DRY_RUN=false */
 function unsetScenarioField(collectionName, proposalId, scenario) {
   const field = fieldNameForL1L2(scenario);
   const update = { $unset: { [field]: "" } };
-  const cmd = `${collectionName}.updateOne(${JSON.stringify({ proposalId })}, ${JSON.stringify(update)})`;
-  console.log(cmd);
-  if (DRY_RUN) return { matchedCount: 0, modifiedCount: 0 };
-  return db.getCollection(collectionName).updateOne({ proposalId }, update);
+  const filter = { proposalId };
+  console.log(`${collectionName}.updateOne(${JSON.stringify(filter)}, ${JSON.stringify(update)})`);
+  if (DRY_RUN) return { dryRun: true };
+  const resp = db.getCollection(collectionName).updateOne(filter, update);
+  console.log("→ Response:", JSON.stringify(resp));
+  return resp;
 }
 function deleteMany(collectionName, filter) {
-  const cmd = `${collectionName}.deleteMany(${JSON.stringify(filter)})`;
-  console.log(cmd);
-  if (DRY_RUN) return { deletedCount: 0 };
-  return db.getCollection(collectionName).deleteMany(filter);
+  console.log(`${collectionName}.deleteMany(${JSON.stringify(filter)})`);
+  if (DRY_RUN) return { dryRun: true };
+  const resp = db.getCollection(collectionName).deleteMany(filter);
+  console.log("→ Response:", JSON.stringify(resp));
+  return resp;
 }
 
 /* ======= main ======= */
@@ -90,13 +90,11 @@ function deleteMany(collectionName, filter) {
 
       // ===== Case 1: gosVersionId is null =====
       if (handleGosVersion && gosVersionId === null) {
-        // lvl1 & lvl2 → UNSET the scenario field
         const r1 = unsetScenarioField("lvl1FinancialsSummary", proposalId, scenario);
         const r2 = unsetScenarioField("lvl2FinancialsSummary", proposalId, scenario);
         stats.l1Unsets += (r1.modifiedCount || 0);
         stats.l2Unsets += (r2.modifiedCount || 0);
 
-        // lvl3 & lvl4 deletes include planId (as before)
         const base = { proposalId, planId, scenario };
         const d3 = deleteMany(lvl3, base);
         const d4 = deleteMany(lvl4, base);
