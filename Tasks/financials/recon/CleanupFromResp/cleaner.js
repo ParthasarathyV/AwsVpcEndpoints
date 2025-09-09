@@ -40,31 +40,33 @@
  * Always logs: proposalId, planId, scenario
  *
  * 1) gosVersionId === null   (HANDLE_GOS_VERSION_NULL)
+ *    - Handling gosVersionId / planId: <current>
  *    - lvl1FinancialsSummary: $unset scenario field
  *    - lvl2FinancialsSummary: $unset scenario field
  *    - lvl3CostDetails<Scenario>: deleteMany({ proposalId, planId, scenario })
  *    - lvl4CostDetails<Scenario>: deleteOne ({ proposalId, planId, scenario })
  *
  * 2) l3ToL4Recon === false   (HANDLE_L3_TO_L4_RECON_FALSE)
- *    - Compute idsToDelete = l3VersionIds − { l4VersionId }
+ *    - Handling l3ToL4Recon / planId: ne <current>
+ *    - idsToDelete = l3VersionIds − { l4VersionId }
  *    - lvl3CostDetails<Scenario>:
  *         deleteMany({ proposalId, scenario, planId: { $ne: currentPlanId }, verId: { $in: idsToDelete } })
  *    - lvl4CostDetails<Scenario>:
  *         skip if scenario is Live
  *         otherwise deleteMany({ proposalId, scenario, planId: { $ne: currentPlanId }, verId: { $ne: l4VersionId } })
  *
- * 3) gosToL4 === false AND gosVersionId != null (HANDLE_GOS_TO_L4_FALSE)
+ * 3) gosToL4 === false AND gosVersionId != null  (HANDLE_GOS_TO_L4_FALSE)
+ *    - Handling gosToL4 / planId: <current>
+ *    - Operate on the current plan only; skip L4 if scenario is Live.
  *    - lvl4CostDetails<Scenario>:
- *         skip if scenario is Live
- *         otherwise deleteMany({ proposalId, scenario, planId: { $ne: currentPlanId } })
+ *         skip if Live; else deleteMany({ proposalId, scenario, planId: currentPlanId, verId: { $ne: gosVersionId } })
  *    - lvl3CostDetails<Scenario>:
- *         deleteMany({ proposalId, scenario, planId: { $ne: currentPlanId } })
+ *         deleteMany({ proposalId, scenario, planId: currentPlanId, verId: { $ne: gosVersionId } })  ← added guard
  *
  * Notes
  * -----
- * - Both L3 and L4 use "verId" as the version field.
- * - All delete filters exclude the current planId (`planId: { $ne: currentPlanId }`).
- * - L4 deletes are always skipped for Live scenario.
+ * - L3 and L4 use "verId" as the version field.
+ * - L4 deletes are skipped for Live scenario where specified.
  * - Prints each command string; when DRY_RUN=false, also prints Mongo responses.
  * - Summary is shown at the end.
  */
@@ -104,6 +106,7 @@ function fieldNameForL1L2(scenario) {
   return s === "pending_approval" ? "pendingApproval" : s;
 }
 
+// wrappers: always print command; when executing, print response too
 function deleteMany(collectionName, filter) {
   console.log(`→ CMD: ${collectionName}.deleteMany(${JSON.stringify(filter)})`);
   if (DRY_RUN) return { dryRun: true };
@@ -161,38 +164,52 @@ function unsetScenarioField(collectionName, proposalId, scenario) {
       console.log(`\n=== Processing Record ===`);
       console.log(`proposalId=${proposalId}, planId=${planId}, scenario=${scenario}`);
 
+      if (!proposalId || !scenario) {
+        console.log(`Skipping element (missing proposalId/scenario).`);
+        continue;
+      }
+
       const lvl3 = coll3Name(scenario);
       const lvl4 = coll4Name(scenario);
       const scenarioLower = String(scenario).toLowerCase();
 
       /* ===== gosVersionId === null ===== */
       if (HANDLE_GOS_VERSION_NULL && gosVersionId === null && planId != null) {
-        console.log(`--- Handling gosVersionId === null ---`);
+        console.log(`Handling gosVersionId`);
+        console.log(`planId: ${planId}`);
+
+        // L1/L2
         const r1 = unsetScenarioField("lvl1FinancialsSummary", proposalId, scenario);
         const r2 = unsetScenarioField("lvl2FinancialsSummary", proposalId, scenario);
         stats.l1Unsets += (r1.modifiedCount || 0);
         stats.l2Unsets += (r2.modifiedCount || 0);
 
+        // L3 (current plan)
         const d3 = deleteMany(lvl3, { proposalId, planId, scenario });
         stats.l3Deletes += (d3.deletedCount || 0);
 
+        // L4 (current plan)
         const d4 = deleteOne(lvl4, { proposalId, planId, scenario });
         stats.l4Deletes += (d4.deletedCount || 0);
       }
 
       /* ===== l3ToL4Recon === false ===== */
       if (HANDLE_L3_TO_L4_RECON_FALSE && l3ToL4Recon === false) {
-        console.log(`--- Handling l3ToL4Recon === false ---`);
+        console.log(`Handling l3ToL4Recon`);
+        console.log(`planId: ne ${planId}`);
+
         if (!l4VersionId) {
           console.log(`Skipping: missing l4VersionId`);
         } else {
           const idsToDelete = l3VersionIds.filter(v => v !== l4VersionId);
 
+          // L3 on OTHER plans only
           const filterL3 = { proposalId, scenario, planId: { $ne: planId } };
           if (idsToDelete.length > 0) filterL3.verId = { $in: idsToDelete };
           const d3 = deleteMany(lvl3, filterL3);
           stats.l3Deletes += (d3.deletedCount || 0);
 
+          // L4 on OTHER plans only (skip Live)
           if (scenarioLower !== "live") {
             const filterL4 = { proposalId, scenario, planId: { $ne: planId }, verId: { $ne: l4VersionId } };
             const d4extra = deleteMany(lvl4, filterL4);
@@ -205,16 +222,22 @@ function unsetScenarioField(collectionName, proposalId, scenario) {
 
       /* ===== gosToL4 === false AND gosVersionId != null ===== */
       if (HANDLE_GOS_TO_L4_FALSE && gosToL4 === false && gosVersionId !== null && planId != null) {
-        console.log(`--- Handling gosToL4 === false (gosVersionId != null) ---`);
+        console.log(`Handling gosToL4`);
+        console.log(`planId: ${planId}`);
+
+        // CURRENT plan only; L4 deletes excluded when Live; exclude current GOS version
         if (scenarioLower !== "live") {
-          const d4 = deleteMany(lvl4, { proposalId, scenario, planId: { $ne: planId } });
+          const filterL4 = { proposalId, scenario, planId, verId: { $ne: gosVersionId } };
+          const d4 = deleteMany(lvl4, filterL4);
           stats.l4Deletes += (d4.deletedCount || 0);
         } else {
           console.log(`Skipping L4 cleanup for Live scenario`);
         }
 
-        const d3 = deleteMany(lvl3, { proposalId, scenario, planId: { $ne: planId } });
-        stats.l3Deletes += (d3.deletedCount || 0);
+        // L3 CURRENT plan with version guard (NEW)
+        const filterL3_cur = { proposalId, scenario, planId, verId: { $ne: gosVersionId } };
+        const d3_cur = deleteMany(lvl3, filterL3_cur);
+        stats.l3Deletes += (d3_cur.deletedCount || 0);
       }
     }
   }
