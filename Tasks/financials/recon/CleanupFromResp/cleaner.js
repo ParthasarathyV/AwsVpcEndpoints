@@ -17,7 +17,7 @@
  *   DRY_RUN                     : true = print only, false = execute
  *   HANDLE_GOS_VERSION_NULL     : process when gosVersionId === null
  *   HANDLE_L3_TO_L4_RECON_FALSE : process when l3ToL4Recon === false
- *   HANDLE_GOS_TO_L4_FALSE      : process when gosToL4 === false
+ *   HANDLE_GOS_TO_L4_FALSE      : process when gosToL4 === false AND gosVersionId != null
  *
  * Collections & Scenario Mapping
  * ------------------------------
@@ -53,7 +53,7 @@
  *         skip if scenario is Live
  *         otherwise deleteMany({ proposalId, scenario, planId: { $ne: currentPlanId }, verId: { $ne: l4VersionId } })
  *
- * 3) gosToL4 === false       (HANDLE_GOS_TO_L4_FALSE)
+ * 3) gosToL4 === false AND gosVersionId != null (HANDLE_GOS_TO_L4_FALSE)
  *    - lvl4CostDetails<Scenario>:
  *         skip if scenario is Live
  *         otherwise deleteMany({ proposalId, scenario, planId: { $ne: currentPlanId } })
@@ -203,9 +203,9 @@ function unsetScenarioField(collectionName, proposalId, scenario) {
         }
       }
 
-      /* ===== gosToL4 === false ===== */
-      if (HANDLE_GOS_TO_L4_FALSE && gosToL4 === false && planId != null) {
-        console.log(`--- Handling gosToL4 === false ---`);
+      /* ===== gosToL4 === false AND gosVersionId != null ===== */
+      if (HANDLE_GOS_TO_L4_FALSE && gosToL4 === false && gosVersionId !== null && planId != null) {
+        console.log(`--- Handling gosToL4 === false (gosVersionId != null) ---`);
         if (scenarioLower !== "live") {
           const d4 = deleteMany(lvl4, { proposalId, scenario, planId: { $ne: planId } });
           stats.l4Deletes += (d4.deletedCount || 0);
