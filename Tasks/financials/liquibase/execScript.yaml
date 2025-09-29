@@ -1,0 +1,50 @@
+databaseChangeLog:
+  - changeSet:
+      id: delete-duplicates
+      changes:
+        - ext:javascript:
+            code: |
+              // ===============================
+              // Duplicate Deletion Script
+              // ===============================
+
+              const dbName = "financials";
+              const collectionName = "Lvl4CostDetailsLive";
+              const BATCH_SIZE = 1000;
+
+              const db = db.getSiblingDB(dbName);
+
+              // Step 1: Aggregate to find duplicate _ids
+              const duplicateDocs = db[collectionName].aggregate([
+                { $match: { scenario: "live" } },
+                {
+                  $setWindowFields: {
+                    partitionBy: { proposalId: "$proposalId", scenario: "$scenario" },
+                    sortBy: { verId: -1 },
+                    output: { rank: { $rank: {} } }
+                  }
+                },
+                { $match: { rank: { $gt: 1 } } },
+                { $project: { _id: 1 } }
+              ]).toArray();
+
+              print("Found " + duplicateDocs.length + " duplicate documents to delete.");
+
+              // Collect IDs
+              const idList = duplicateDocs.map(doc => doc._id);
+
+              // Step 2: Delete in batches
+              for (let i = 0; i < idList.length; i += BATCH_SIZE) {
+                const batch = idList.slice(i, i + BATCH_SIZE);
+                const result = db[collectionName].deleteMany({ _id: { $in: batch } });
+
+                print(
+                  "Deleted batch " +
+                  (i / BATCH_SIZE + 1) +
+                  " => " +
+                  result.deletedCount +
+                  " documents"
+                );
+              }
+
+              print("Duplicate deletion complete.");
