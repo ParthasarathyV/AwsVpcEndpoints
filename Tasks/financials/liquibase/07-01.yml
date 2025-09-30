@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: purge-duplicates-lvl4-live
+      author: consultant
+      changes:
+        - runCommand:
+            database: financials
+            command:
+              update: "lvl4CostDetailsLive"
+              updates:
+                - q: {}
+                  u: [
+                      { $setWindowFields: {
+                          partitionBy: { proposalId: "$proposalId", scenario: "$scenario" },
+                          sortBy: { verId: -1 },
+                          output: { rank: { $rank: {} } }
+                        }
+                      },
+                      { $set: {
+                          isDuplicate: { $cond: [ { $gt: ["$rank", 1] }, true, "$$REMOVE" ] }
+                        }
+                      },
+                      { $unset: "rank" }
+                    ]
+                  multi: true
+
+        - runCommand:
+            database: financials
+            command:
+              delete: "lvl4CostDetailsLive"
+              deletes:
+                - q: { isDuplicate: true }
+                  limit: 0
