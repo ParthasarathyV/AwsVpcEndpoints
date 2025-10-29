@@ -1,0 +1,13 @@
+{
+  "name": "demo-trigger-test",
+  "version": "1.0.0",
+  "scripts": {
+    "quick": "node quickDemoTest.js",
+    "lag": "node lagProbe.js"
+  },
+  "dependencies": {
+    "mongodb": "^6.3.0"
+  }
+}
+
+
